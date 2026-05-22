@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go-api:
+    name: Go API — lint + test + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: services/api/go.sum
+      - name: Verify go.mod tidy
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.61.0
+          working-directory: services/api
+          args: --timeout=5m
+      - name: Test
+        run: go test ./... -race -coverprofile=coverage.out
+      - name: Build
+        run: |
+          CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /tmp/api ./cmd/api
+          CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /tmp/worker ./cmd/worker
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-coverage
+          path: services/api/coverage.out
+          retention-days: 7
+
+  go-admin:
+    name: Go Admin — lint + test + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: apps/admin/go.sum
+      - name: Verify go.mod tidy
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.61.0
+          working-directory: apps/admin
+          args: --timeout=5m
+      - name: Test
+        run: go test ./... -race -coverprofile=coverage.out
+      - name: Build
+        run: CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /tmp/admin ./cmd/admin
+
+  miniapp:
+    name: Miniapp — typecheck + test + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npx --workspace=@buocvang/miniapp tsc --noEmit
+      - name: Test
+        run: npx --workspace=@buocvang/miniapp vitest run
+      - name: Build
+        run: npm run build --workspace=@buocvang/miniapp
+      - name: Verify bundle size <= 10MB (ZMP limit)
+        run: |
+          SIZE=$(du -sk apps/miniapp/dist | cut -f1)
+          echo "Bundle size: ${SIZE} KB"
+          if [ "$SIZE" -gt 10240 ]; then
+            echo "::error::Bundle vượt 10MB — Zalo Mini App sẽ reject."
+            exit 1
+          fi
+
+  openapi-lint:
+    name: OpenAPI — lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Lint openapi.yaml
+        run: npx --yes @redocly/cli@latest lint services/api/openapi.yaml

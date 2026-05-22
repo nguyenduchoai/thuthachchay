@@ -1,0 +1,15 @@
+ARG GO_VERSION=1.22
+FROM golang:${GO_VERSION}-alpine AS builder
+WORKDIR /src
+RUN apk add --no-cache git ca-certificates
+COPY services/api/go.mod services/api/go.sum* services/api/
+RUN cd services/api && go mod download
+COPY services/api ./services/api
+WORKDIR /src/services/api
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags='-s -w' -o /out/worker ./cmd/worker
+
+FROM gcr.io/distroless/static-debian12:nonroot
+USER nonroot:nonroot
+WORKDIR /app
+COPY --from=builder /out/worker /app/worker
+ENTRYPOINT ["/app/worker"]

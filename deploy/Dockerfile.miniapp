@@ -1,0 +1,18 @@
+# Build & serve miniapp dist/ qua nginx. Lưu ý: production ZMP đi qua zmp-cli
+# upload lên Zalo, container này chỉ dùng cho preview/staging web.
+FROM node:20-alpine AS builder
+WORKDIR /src
+COPY package.json package-lock.json* ./
+COPY apps/miniapp/package.json ./apps/miniapp/
+COPY packages/api-client/package.json ./packages/api-client/
+RUN npm ci --no-audit --no-fund
+
+COPY tsconfig.base.json ./
+COPY apps/miniapp ./apps/miniapp
+COPY packages/api-client ./packages/api-client
+RUN npm run build --workspace=@buocvang/miniapp
+
+FROM nginx:1.27-alpine
+COPY --from=builder /src/apps/miniapp/dist /usr/share/nginx/html
+COPY deploy/nginx-miniapp.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80

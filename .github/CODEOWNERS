@@ -1,0 +1,19 @@
+# Default owner cho tất cả file.
+*                                @buocvang/core
+
+# Backend Go
+/services/api/                   @buocvang/backend
+/services/api/migrations/        @buocvang/backend @buocvang/dba
+
+# Admin
+/apps/admin/                     @buocvang/backend
+
+# Miniapp
+/apps/miniapp/                   @buocvang/frontend
+
+# Infra / CI
+/.github/                        @buocvang/devops
+/deploy/                         @buocvang/devops
+
+# Tài liệu
+/docs/                           @buocvang/core

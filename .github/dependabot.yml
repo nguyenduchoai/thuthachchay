@@ -1,0 +1,39 @@
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/services/api"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels: ["deps", "go"]
+
+  - package-ecosystem: "gomod"
+    directory: "/apps/admin"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    labels: ["deps", "go"]
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels: ["deps", "npm"]
+    groups:
+      vite-toolchain:
+        patterns: ["vite*", "@vitejs/*", "vitest*"]
+      eslint-toolchain:
+        patterns: ["eslint*", "@typescript-eslint/*"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels: ["deps", "ci"]
+
+  - package-ecosystem: "docker"
+    directory: "/deploy"
+    schedule:
+      interval: "monthly"
+    labels: ["deps", "docker"]
