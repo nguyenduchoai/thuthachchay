@@ -1,0 +1,30 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "db/query"
+    schema: "migrations"
+    gen:
+      go:
+        package: "store"
+        out: "internal/store"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_pointers_for_null_types: true
+        emit_prepared_queries: false
+        emit_interface: true
+        emit_db_tags: false
+        emit_empty_slices: true
+        output_db_file_name: "db.go"
+        output_models_file_name: "models.go"
+        output_querier_file_name: "querier.go"
+        rename:
+          zalo_id: "ZaloID"
+          strava_id: "StravaID"
+          oauth_token: "OAuthToken"
+        overrides:
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+          - db_type: "jsonb"
+            go_type: "encoding/json.RawMessage"

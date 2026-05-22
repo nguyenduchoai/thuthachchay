@@ -1,0 +1,568 @@
+openapi: 3.1.0
+info:
+  title: Bước Vàng Public API
+  version: 0.1.0
+  description: |
+    Public API cho Zalo Mini App "Bước Vàng".
+    Auth: Bearer JWT (RS256). Required headers: `Authorization`, `X-Client`.
+    Mutation endpoints chấp nhận `X-Idempotency-Key` (UUID v4).
+  license:
+    name: Proprietary
+servers:
+  - url: https://api.buocvang.vn
+    description: Production
+  - url: http://localhost:8080
+    description: Local
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: auth
+  - name: profile
+  - name: steps
+  - name: challenges
+  - name: leaderboards
+  - name: wallet
+  - name: vouchers
+  - name: strava
+  - name: referral
+
+paths:
+  /healthz: { get: { tags: [meta], security: [], operationId: getHealthz, responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/HealthResponse' }}}}}}}
+  /readyz:  { get: { tags: [meta], security: [], operationId: getReadyz,  responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/HealthResponse' }}}}}}}
+  /version: { get: { tags: [meta], security: [], operationId: getVersion, responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/VersionResponse' }}}}}}}
+
+  /v1/auth/zalo:
+    post:
+      tags: [auth]
+      security: []
+      operationId: zaloLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ZaloLoginRequest' }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResponse' }}}}
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /v1/auth/refresh:
+    post:
+      tags: [auth]
+      security: []
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties: { refresh_token: { type: string }}
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResponse' }}}}
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /v1/auth/sign-out:
+    post:
+      tags: [auth]
+      operationId: signOut
+      responses:
+        '204': { description: ok }
+
+  /v1/me:
+    get:
+      tags: [profile]
+      operationId: getMe
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/User' }}}}
+    patch:
+      tags: [profile]
+      operationId: updateMe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateMeRequest' }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/User' }}}}
+
+  /v1/me/today:
+    get:
+      tags: [profile]
+      operationId: getMyToday
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/DailySteps' }}}}
+
+  /v1/me/history:
+    get:
+      tags: [profile]
+      operationId: getMyHistory
+      parameters:
+        - { in: query, name: from, schema: { type: string, format: date }}
+        - { in: query, name: to,   schema: { type: string, format: date }}
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/DailySteps' }}}}}
+
+  /v1/me/referral:
+    get:
+      tags: [referral]
+      operationId: getMyReferral
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Referral' }}}}
+
+  /v1/me/host-stats:
+    get:
+      tags: [profile]
+      operationId: getMyHostStats
+      responses:
+        '200': { description: ok }
+
+  /v1/me/notifications:
+    patch:
+      tags: [profile]
+      operationId: updateMyNotifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NotificationPrefs' }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationPrefs' }}}}
+
+  /v1/me/attribution:
+    post:
+      tags: [profile]
+      operationId: setMyAttribution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source]
+              properties:
+                source: { type: string, enum: [friend, social, ads, search, other] }
+      responses:
+        '204': { description: ok }
+
+  /v1/username/check:
+    post:
+      tags: [profile]
+      operationId: checkUsername
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [handle]
+              properties: { handle: { type: string, minLength: 3, maxLength: 24 }}
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { available: { type: boolean }}
+
+  /v1/steps/ingest:
+    post:
+      tags: [steps]
+      operationId: ingestSteps
+      parameters:
+        - { in: header, name: X-Idempotency-Key, required: true, schema: { type: string, format: uuid }}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StepsIngestRequest' }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/DailySteps' }}}}
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /v1/challenges:
+    get:
+      tags: [challenges]
+      operationId: listChallenges
+      parameters:
+        - { in: query, name: status, schema: { type: string, enum: [open, live, settled, cancelled] }}
+        - { in: query, name: phase,  schema: { type: string, enum: [upcoming, live, wrapping] }}
+        - { in: query, name: limit,  schema: { type: integer, default: 20, maximum: 100 }}
+        - { in: query, name: offset, schema: { type: integer, default: 0 }}
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Challenge' }}}}}
+    post:
+      tags: [challenges]
+      operationId: createChallenge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateChallengeRequest' }
+      responses:
+        '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/Challenge' }}}}
+
+  /v1/challenges/{id}:
+    get:
+      tags: [challenges]
+      operationId: getChallenge
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid }}
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Challenge' }}}}
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/challenges/{id}/join:
+    post:
+      tags: [challenges]
+      operationId: joinChallenge
+      parameters:
+        - { in: path,   name: id, required: true, schema: { type: string, format: uuid }}
+        - { in: header, name: X-Idempotency-Key, required: true, schema: { type: string, format: uuid }}
+      responses:
+        '200': { description: ok }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /v1/leaderboards/global:
+    get:
+      tags: [leaderboards]
+      operationId: getGlobalLeaderboard
+      parameters:
+        - { in: query, name: limit, schema: { type: integer, default: 20, maximum: 100 }}
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/LeaderboardRow' }}}}}
+
+  /v1/leaderboards/challenge/{id}:
+    get:
+      tags: [leaderboards]
+      operationId: getChallengeLeaderboard
+      parameters:
+        - { in: path,  name: id, required: true, schema: { type: string, format: uuid }}
+        - { in: query, name: limit, schema: { type: integer, default: 50, maximum: 200 }}
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/LeaderboardRow' }}}}}
+
+  /v1/wallet:
+    get:
+      tags: [wallet]
+      operationId: getWallet
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Wallet' }}}}
+
+  /v1/vouchers:
+    get:
+      tags: [vouchers]
+      operationId: listVouchers
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/VoucherProduct' }}}}}
+
+  /v1/vouchers/mine:
+    get:
+      tags: [vouchers]
+      operationId: listMyVouchers
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Redemption' }}}}}
+
+  /v1/vouchers/{id}/redeem:
+    post:
+      tags: [vouchers]
+      operationId: redeemVoucher
+      parameters:
+        - { in: path,   name: id, required: true, schema: { type: string, format: uuid }}
+        - { in: header, name: X-Idempotency-Key, required: true, schema: { type: string, format: uuid }}
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Redemption' }}}}
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /v1/transactions/{id}:
+    get:
+      tags: [wallet]
+      operationId: getTransaction
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid }}
+      responses:
+        '200': { description: ok }
+
+  /v1/referrals/track:
+    post:
+      tags: [referral]
+      operationId: trackReferral
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties: { code: { type: string }}
+      responses:
+        '204': { description: ok }
+
+  /v1/strava/oauth/url:
+    get:
+      tags: [strava]
+      operationId: getStravaOAuthURL
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string, format: uri }
+                  state: { type: string }
+
+  /v1/strava/oauth/callback:
+    post:
+      tags: [strava]
+      operationId: stravaOAuthCallback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, state]
+              properties:
+                code:  { type: string }
+                state: { type: string }
+      responses:
+        '200': { description: ok }
+
+  /v1/strava/webhook:
+    get:
+      tags: [strava]
+      security: []
+      operationId: stravaWebhookVerify
+      parameters:
+        - { in: query, name: 'hub.mode',         schema: { type: string }}
+        - { in: query, name: 'hub.verify_token', schema: { type: string }}
+        - { in: query, name: 'hub.challenge',    schema: { type: string }}
+      responses:
+        '200': { description: ok }
+    post:
+      tags: [strava]
+      security: []
+      operationId: stravaWebhookEvent
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { type: object, additionalProperties: true }}
+      responses:
+        '200': { description: ok }
+
+  /v1/upload:
+    post:
+      tags: [profile]
+      operationId: uploadFile
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, kind]
+              properties:
+                file: { type: string, format: binary }
+                kind: { type: string, enum: [avatar, cover] }
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { url: { type: string, format: uri }}
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: unauthorized
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' }}}
+    NotFound:
+      description: not found
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' }}}
+    Conflict:
+      description: conflict
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' }}}
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:    { type: string }
+            message: { type: string }
+        request_id: { type: string }
+
+    HealthResponse:
+      type: object
+      properties: { status: { type: string, enum: [ok, degraded] }}
+
+    VersionResponse:
+      type: object
+      properties:
+        service: { type: string }
+        version: { type: string }
+        commit:  { type: string }
+
+    ZaloLoginRequest:
+      type: object
+      required: [access_token]
+      properties:
+        access_token: { type: string, description: 'ZMP getAccessToken()' }
+
+    AuthResponse:
+      type: object
+      properties:
+        access_token:  { type: string }
+        refresh_token: { type: string }
+        expires_in:    { type: integer, description: 'access TTL giây' }
+        user:          { $ref: '#/components/schemas/User' }
+
+    User:
+      type: object
+      required: [id, zalo_id]
+      properties:
+        id:           { type: string, format: uuid }
+        zalo_id:      { type: string }
+        handle:       { type: string, nullable: true }
+        display_name: { type: string }
+        avatar_url:   { type: string, format: uri, nullable: true }
+        daily_goal:   { type: integer }
+        locale:       { type: string, enum: [vi, en] }
+        balance_points: { type: integer }
+        referral_code:  { type: string, nullable: true }
+
+    UpdateMeRequest:
+      type: object
+      properties:
+        handle:       { type: string }
+        display_name: { type: string }
+        avatar_url:   { type: string, format: uri }
+        daily_goal:   { type: integer }
+        locale:       { type: string, enum: [vi, en] }
+
+    DailySteps:
+      type: object
+      properties:
+        day:           { type: string, format: date }
+        zmp_steps:     { type: integer }
+        strava_steps:  { type: integer }
+        merged_steps:  { type: integer }
+        flagged:       { type: boolean }
+
+    StepsIngestRequest:
+      type: object
+      required: [day, source, steps, client_nonce]
+      properties:
+        day:          { type: string, format: date }
+        source:       { type: string, enum: [zmp, strava] }
+        steps:        { type: integer, minimum: 0 }
+        client_nonce: { type: string }
+        sensor_hash:  { type: string, nullable: true }
+
+    Challenge:
+      type: object
+      required: [id, name, daily_steps_target, start_date, end_date, status]
+      properties:
+        id:                  { type: string, format: uuid }
+        host_id:             { type: string, format: uuid, nullable: true }
+        visibility:          { type: string, enum: [public, private] }
+        name:                { type: string }
+        description:         { type: string }
+        cover_url:           { type: string, format: uri, nullable: true }
+        daily_steps_target:  { type: integer }
+        duration_days:       { type: integer }
+        entry_points:        { type: integer }
+        prize_pool:          { type: integer }
+        start_date:          { type: string, format: date }
+        end_date:            { type: string, format: date }
+        status:              { type: string, enum: [draft, open, live, settled, cancelled] }
+
+    CreateChallengeRequest:
+      type: object
+      required: [visibility, name, daily_steps_target, duration_days, start_date]
+      properties:
+        visibility:          { type: string, enum: [public, private] }
+        name:                { type: string }
+        description:         { type: string }
+        cover_url:           { type: string, format: uri }
+        daily_steps_target:  { type: integer, minimum: 1000, maximum: 50000 }
+        duration_days:       { type: integer, minimum: 1, maximum: 90 }
+        entry_points:        { type: integer, minimum: 0 }
+        prize_pool:          { type: integer, minimum: 0 }
+        max_participants:    { type: integer, minimum: 1 }
+        start_date:          { type: string, format: date }
+
+    LeaderboardRow:
+      type: object
+      properties:
+        rank:         { type: integer }
+        user_id:      { type: string, format: uuid }
+        handle:       { type: string, nullable: true }
+        display_name: { type: string }
+        avatar_url:   { type: string, format: uri, nullable: true }
+        total_steps:  { type: integer }
+
+    Wallet:
+      type: object
+      properties:
+        balance_points: { type: integer }
+        ledger:
+          type: array
+          items:
+            type: object
+            properties:
+              id:           { type: string, format: uuid }
+              delta_points: { type: integer }
+              reason:       { type: string }
+              created_at:   { type: string, format: date-time }
+
+    VoucherProduct:
+      type: object
+      properties:
+        id:          { type: string, format: uuid }
+        partner:     { type: string }
+        name:        { type: string }
+        description: { type: string }
+        cost_points: { type: integer }
+        cover_url:   { type: string, format: uri, nullable: true }
+
+    Redemption:
+      type: object
+      properties:
+        id:           { type: string, format: uuid }
+        product_id:   { type: string, format: uuid }
+        product_name: { type: string }
+        partner:      { type: string }
+        code:         { type: string, nullable: true }
+        status:       { type: string, enum: [pending, complete, failed, refunded] }
+        created_at:   { type: string, format: date-time }
+
+    Referral:
+      type: object
+      properties:
+        code:           { type: string }
+        invited_count:  { type: integer }
+        completed_count:{ type: integer }
+        bonus_points:   { type: integer }
+
+    NotificationPrefs:
+      type: object
+      properties:
+        challenges: { type: boolean }
+        rewards:    { type: boolean }
+        streaks:    { type: boolean }

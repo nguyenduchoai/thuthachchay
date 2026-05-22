@@ -1,0 +1,16 @@
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tgz binary
+*.bin binary
+
+# Generated files — ignore in diff
+services/api/internal/store/*.sql.go linguist-generated=true -diff
+**/*_templ.go linguist-generated=true -diff
+packages/api-client/src/generated/** linguist-generated=true -diff

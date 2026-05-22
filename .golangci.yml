@@ -1,0 +1,49 @@
+run:
+  timeout: 5m
+  go: "1.22"
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - ineffassign
+    - gosimple
+    - gosec
+    - gocritic
+    - revive
+    - misspell
+    - bodyclose
+    - rowserrcheck
+    - sqlclosecheck
+    - nilerr
+    - errorlint
+    - exhaustive
+    - prealloc
+    - unconvert
+    - goimports
+    - gofmt
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec
+        - errcheck
+    - path: "internal/store/.*\\.sql\\.go"
+      linters:
+        - revive
+        - gocritic
+        - gosec
+
+linters-settings:
+  gosec:
+    excludes:
+      - G104  # errcheck đã handle
+  errorlint:
+    errorf: true
+    asserts: true
+    comparison: true
+  exhaustive:
+    default-signifies-exhaustive: true
