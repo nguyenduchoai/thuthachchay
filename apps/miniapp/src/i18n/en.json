@@ -1,0 +1,101 @@
+{
+  "common": {
+    "appName": "Buoc Vang",
+    "loading": "Loading…",
+    "continue": "Continue",
+    "skip": "Skip",
+    "save": "Save",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "back": "Back",
+    "share": "Share"
+  },
+  "nav": {
+    "home": "Home",
+    "discover": "Discover",
+    "create": "Create",
+    "wallet": "Wallet",
+    "profile": "Profile"
+  },
+  "splash": {
+    "tagline": "Every step — a reward"
+  },
+  "welcome": {
+    "title": "Turn Steps Into Rewards",
+    "subtitle": "Daily challenges, redeem points for vouchers.",
+    "cta": "Get Started"
+  },
+  "onboarding": {
+    "how": {
+      "title": "How it works",
+      "step1": "Set a daily step goal.",
+      "step2": "Join challenges with the community.",
+      "step3": "Complete them to earn points and redeem vouchers."
+    },
+    "source": {
+      "title": "How did you hear about us?",
+      "friend": "From a friend",
+      "social": "Social media",
+      "ads": "Ads",
+      "search": "Search",
+      "other": "Other"
+    },
+    "goal": {
+      "title": "Daily goal",
+      "subtitle": "You can change this later.",
+      "recommended": "Recommended"
+    },
+    "username": {
+      "title": "Pick your handle",
+      "placeholder": "@handle",
+      "available": "Available",
+      "taken": "Taken",
+      "random": "Suggest random"
+    },
+    "leaderboard": {
+      "title": "Global top today"
+    },
+    "strava": {
+      "title": "Connect Strava",
+      "subtitle": "Sync activities for more accurate step counts.",
+      "connect": "Connect"
+    },
+    "notify": {
+      "title": "Enable notifications",
+      "challenges": "Challenge invites",
+      "rewards": "Rewards",
+      "streaks": "Streaks",
+      "allow": "Allow"
+    }
+  },
+  "auth": {
+    "signIn": "Continue with Zalo"
+  },
+  "home": {
+    "todayGoal": "Today's goal",
+    "openChallenges": "Open challenges",
+    "topSteps": "Top steps today"
+  },
+  "wallet": {
+    "balance": "Points balance",
+    "vouchers": "Your vouchers",
+    "incident": "Incident under review."
+  },
+  "profile": {
+    "settings": "Settings",
+    "editProfile": "Edit profile",
+    "invite": "Invite friends",
+    "signOut": "Sign out"
+  },
+  "challenge": {
+    "join": "Join",
+    "joined": "Joined",
+    "participants": "{{count}} participants",
+    "daysLeft": "{{count}} days left"
+  },
+  "errors": {
+    "unauthorized": "Please sign in again.",
+    "network": "Network error. Check your connection.",
+    "rateLimited": "Too many requests. Try later."
+  }
+}

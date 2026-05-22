@@ -1,0 +1,101 @@
+{
+  "common": {
+    "appName": "Bước Vàng",
+    "loading": "Đang tải…",
+    "continue": "Tiếp tục",
+    "skip": "Để sau",
+    "save": "Lưu",
+    "cancel": "Huỷ",
+    "retry": "Thử lại",
+    "back": "Quay lại",
+    "share": "Chia sẻ"
+  },
+  "nav": {
+    "home": "Trang chủ",
+    "discover": "Khám phá",
+    "create": "Tạo",
+    "wallet": "Ví",
+    "profile": "Tài khoản"
+  },
+  "splash": {
+    "tagline": "Mỗi bước chân — một phần thưởng"
+  },
+  "welcome": {
+    "title": "Biến bước chân thành quà",
+    "subtitle": "Thử thách hằng ngày, đổi điểm lấy voucher.",
+    "cta": "Bắt đầu"
+  },
+  "onboarding": {
+    "how": {
+      "title": "App hoạt động thế nào?",
+      "step1": "Đặt mục tiêu bước chân mỗi ngày.",
+      "step2": "Tham gia thử thách cùng cộng đồng.",
+      "step3": "Hoàn thành để nhận điểm và đổi voucher."
+    },
+    "source": {
+      "title": "Bạn biết đến Bước Vàng từ đâu?",
+      "friend": "Bạn bè giới thiệu",
+      "social": "Mạng xã hội",
+      "ads": "Quảng cáo",
+      "search": "Tìm kiếm",
+      "other": "Khác"
+    },
+    "goal": {
+      "title": "Mục tiêu mỗi ngày",
+      "subtitle": "Bạn có thể chỉnh sau ở Tài khoản.",
+      "recommended": "Đề xuất"
+    },
+    "username": {
+      "title": "Đặt tên hiển thị",
+      "placeholder": "@handle",
+      "available": "Có thể dùng",
+      "taken": "Đã có người dùng",
+      "random": "Đề xuất ngẫu nhiên"
+    },
+    "leaderboard": {
+      "title": "Top toàn cầu hôm nay"
+    },
+    "strava": {
+      "title": "Kết nối Strava",
+      "subtitle": "Đồng bộ activity để đếm bước chính xác hơn.",
+      "connect": "Kết nối"
+    },
+    "notify": {
+      "title": "Bật thông báo",
+      "challenges": "Lời mời thử thách",
+      "rewards": "Phần thưởng",
+      "streaks": "Chuỗi ngày",
+      "allow": "Cho phép"
+    }
+  },
+  "auth": {
+    "signIn": "Tiếp tục với Zalo"
+  },
+  "home": {
+    "todayGoal": "Mục tiêu hôm nay",
+    "openChallenges": "Thử thách đang mở",
+    "topSteps": "Top bước chân hôm nay"
+  },
+  "wallet": {
+    "balance": "Số dư điểm",
+    "vouchers": "Voucher của bạn",
+    "incident": "Đang có sự cố — đang điều tra."
+  },
+  "profile": {
+    "settings": "Cài đặt",
+    "editProfile": "Sửa hồ sơ",
+    "invite": "Mời bạn bè",
+    "signOut": "Đăng xuất"
+  },
+  "challenge": {
+    "join": "Tham gia",
+    "joined": "Đã tham gia",
+    "participants": "{{count}} người tham gia",
+    "daysLeft": "Còn {{count}} ngày"
+  },
+  "errors": {
+    "unauthorized": "Vui lòng đăng nhập lại.",
+    "network": "Lỗi mạng. Kiểm tra kết nối.",
+    "rateLimited": "Quá nhiều yêu cầu. Đợi chút."
+  }
+}

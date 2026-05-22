@@ -1,0 +1,23 @@
+{
+  "app": {
+    "title": "Bước Vàng",
+    "headerColor": "#FF9500",
+    "textColor": "white",
+    "statusBar": "transparent",
+    "actionBarHidden": false,
+    "hideAndroidBottomNavigationBar": true,
+    "version": "0.1.0"
+  },
+  "listSyncfont": [],
+  "listCSS": [],
+  "permissions": [
+    {
+      "name": "scope.userInfo",
+      "description": "Để hiển thị tên và avatar của bạn trong bảng xếp hạng và profile."
+    },
+    {
+      "name": "scope.userPhonenumber",
+      "description": "Để gửi voucher và thông báo phần thưởng (nếu bạn đồng ý)."
+    }
+  ]
+}
