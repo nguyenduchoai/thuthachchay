@@ -55,5 +55,6 @@ type SettleResult struct {
 	ChallengeID string
 	Winners     []string
 	SharePoints int
+	PrizeShared int
 	Refunded    bool
 }

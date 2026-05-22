@@ -242,3 +242,310 @@ p {
 .onboarding__steps li {
   margin: 12px 0;
 }
+
+/* ─── Shared utility ──────────────────────────────────────────────────── */
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: var(--accent-2);
+  background: rgba(255, 106, 0, 0.08);
+  padding: 8px 12px;
+  border-radius: var(--radius-s);
+  margin-top: 12px;
+}
+.link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.glass {
+  background: var(--surface-2);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: var(--radius-l);
+  box-shadow: 0 4px 20px rgba(120, 84, 16, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  padding: 16px;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--hairline);
+}
+.tag--live {
+  background: rgba(52, 199, 89, 0.12);
+  color: #1e8a3e;
+  border-color: rgba(52, 199, 89, 0.3);
+}
+.btn--full {
+  width: 100%;
+}
+.btn--sm {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+.btn--zalo {
+  background: #0068ff;
+  color: #fff;
+  padding: 14px 24px;
+  font-size: 16px;
+  border-radius: 999px;
+  border: 0;
+  font-weight: 700;
+  cursor: pointer;
+}
+.section__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 24px 0 12px;
+}
+.section__header h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+/* ─── Home ───────────────────────────────────────────────────────────── */
+.home__header h1 {
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+.home__today {
+  text-align: center;
+  margin: 16px 0 24px;
+  padding: 24px;
+}
+.home__today-num {
+  font-size: 44px;
+  font-weight: 900;
+  letter-spacing: -1.5px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.progress {
+  height: 8px;
+  background: var(--hairline);
+  border-radius: 999px;
+  margin: 12px 0 6px;
+  overflow: hidden;
+}
+.progress__bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 0.4s ease;
+}
+.cards-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 0 12px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.cards-scroll::-webkit-scrollbar {
+  display: none;
+}
+.challenge-card {
+  flex: 0 0 220px;
+  scroll-snap-align: start;
+  text-decoration: none;
+  color: var(--text);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.challenge-card .cover {
+  height: 90px;
+  border-radius: var(--radius-m);
+  background: linear-gradient(135deg, var(--bg-1), var(--bg-3, #f2e9ff));
+}
+.challenge-card .row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* ─── Leaderboard ────────────────────────────────────────────────────── */
+.leaderboard {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.leaderboard__row {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+}
+.leaderboard__row .rank {
+  font-weight: 800;
+  color: var(--accent);
+}
+.leaderboard__row .handle {
+  font-weight: 600;
+}
+.leaderboard__row .value {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+/* ─── Challenge detail ───────────────────────────────────────────────── */
+.challenge-detail {
+  padding-bottom: 100px;
+}
+.cover-hero {
+  position: relative;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  border-radius: var(--radius-l);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.cover-hero h1 {
+  margin: 8px 0 4px;
+  color: #fff;
+}
+.cover-hero p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.85);
+}
+.prize-hero {
+  text-align: center;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.prize-hero .lab,
+.balance-hero .lab,
+.code-card small {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.prize-hero .b,
+.balance-hero .b {
+  font-size: 36px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin: 6px 0 4px;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 16px 0;
+}
+.stat {
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-m);
+  padding: 12px 6px;
+}
+.stat b {
+  display: block;
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+.stat span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.cta-sticky {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 64px;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--hairline);
+}
+
+/* ─── Wallet ─────────────────────────────────────────────────────────── */
+.balance-hero {
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-l);
+  padding: 24px;
+  margin: 16px 0;
+}
+.redeemed {
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.redeemed code {
+  background: var(--accent-soft, rgba(255, 149, 0, 0.16));
+  padding: 4px 10px;
+  border-radius: var(--radius-s);
+  font-weight: 700;
+}
+.voucher-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.voucher-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.voucher-item__right {
+  text-align: right;
+}
+.voucher-item .cost {
+  font-weight: 800;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+/* ─── Invite ─────────────────────────────────────────────────────────── */
+.invite {
+  text-align: center;
+}
+.invite__gift {
+  font-size: 64px;
+  margin-top: 16px;
+}
+.code-card {
+  text-align: center;
+  padding: 24px;
+  margin: 20px 0;
+}
+.code-card__code {
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin: 8px 0;
+  cursor: pointer;
+}
