@@ -37,7 +37,7 @@ func (s *StepsStore) UpsertDaily(ctx context.Context, tx pgx.Tx, userID string, 
 	q := `INSERT INTO daily_steps (user_id, day, steps, source, flagged)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (user_id, day) DO UPDATE SET
-		  steps = GREATEST(daily_steps.steps, EXCLUDED.steps),
+		  steps = daily_steps.steps + EXCLUDED.steps,
 		  source = CASE
 		    WHEN daily_steps.source = EXCLUDED.source THEN EXCLUDED.source
 		    ELSE 'merged' END,

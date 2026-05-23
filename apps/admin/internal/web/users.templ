@@ -1,0 +1,149 @@
+package web
+
+import (
+	"github.com/gofiber/fiber/v2"
+)
+
+templ usersListPage(c *fiber.Ctx, users []userRow, total, pageN, perPage int, q, statusF string) {
+	@page(c, "Users") {
+		<h1 class="text-2xl font-bold mb-4">{ t(c, "Người dùng", "Users") }</h1>
+		<form method="get" class="bg-white rounded-xl p-4 shadow-sm mb-4 flex flex-wrap gap-3 items-end">
+			<div class="flex flex-col gap-1">
+				<label class="text-xs uppercase tracking-wider text-gray-500">{ t(c, "Tìm", "Search") }</label>
+				<input type="search" name="q" value={ q } placeholder={ "zalo_id, handle, " + t(c, "tên", "name") } class="px-3 py-2 border border-gray-300 rounded text-sm"/>
+			</div>
+			<div class="flex flex-col gap-1">
+				<label class="text-xs uppercase tracking-wider text-gray-500">{ t(c, "Trạng thái", "Status") }</label>
+				<select name="status" class="px-3 py-2 border border-gray-300 rounded text-sm">
+					<option value="">{ t(c, "Tất cả", "All") }</option>
+					<option value="active" selected?={ statusF == "active" }>active</option>
+					<option value="suspended" selected?={ statusF == "suspended" }>suspended</option>
+					<option value="banned" selected?={ statusF == "banned" }>banned</option>
+				</select>
+			</div>
+			<button type="submit" class="px-4 py-2 bg-brand text-white rounded text-sm font-medium">{ t(c, "Lọc", "Filter") }</button>
+		</form>
+		<div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+			<table class="w-full text-sm">
+				<thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+					<tr>
+						<th class="px-3 py-2 text-left">Handle</th>
+						<th class="px-3 py-2 text-left">Zalo ID</th>
+						<th class="px-3 py-2 text-left">{ t(c, "Tên", "Name") }</th>
+						<th class="px-3 py-2 text-left">Goal</th>
+						<th class="px-3 py-2 text-left">Status</th>
+						<th class="px-3 py-2 text-left">Fraud</th>
+						<th class="px-3 py-2 text-left">{ t(c, "Balance", "Balance") }</th>
+						<th class="px-3 py-2 text-left">{ t(c, "Tham gia", "Joined") }</th>
+						<th class="px-3 py-2 text-left">{ t(c, "Hành động", "Actions") }</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, u := range users {
+						@userRowTR(c, u)
+					}
+				</tbody>
+			</table>
+		</div>
+		@pager(c, total, perPage, pageN)
+	}
+}
+
+templ userRowTR(c *fiber.Ctx, u userRow) {
+	<tr class="border-t border-gray-100 align-top">
+		<td class="px-3 py-2"><a href={ templ.SafeURL("/admin/users/" + u.ID) } class="text-brand hover:underline">{ "@" + u.Handle }</a></td>
+		<td class="px-3 py-2"><code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{ u.ZaloID }</code></td>
+		<td class="px-3 py-2">{ u.Name }</td>
+		<td class="px-3 py-2">{ u.DailyGoal }</td>
+		<td class="px-3 py-2">@statusPillC(u.Status)</td>
+		<td class="px-3 py-2">{ u.FraudScore }</td>
+		<td class="px-3 py-2">{ formatInt(u.Balance) } đ</td>
+		<td class="px-3 py-2 text-gray-500">{ u.CreatedAt.Format("02/01/06") }</td>
+		<td class="px-3 py-2">
+			<div class="flex flex-wrap gap-1">
+				if u.Status == "active" {
+					<form method="post" action={ templ.SafeURL("/admin/users/" + u.ID + "/suspend") } class="inline">
+						<button class="px-2 py-1 bg-red-600 text-white text-xs rounded" data-confirm={ t(c, "Suspend user này?", "Suspend this user?") }>Suspend</button>
+					</form>
+				} else {
+					<form method="post" action={ templ.SafeURL("/admin/users/" + u.ID + "/activate") } class="inline">
+						<button class="px-2 py-1 bg-brand text-white text-xs rounded">Activate</button>
+					</form>
+				}
+				<form method="post" action={ templ.SafeURL("/admin/users/" + u.ID + "/adjust") } class="inline flex gap-1 items-center">
+					<input type="number" name="delta" placeholder="±delta" required class="w-20 px-1 py-0.5 border border-gray-300 rounded text-xs"/>
+					<input type="hidden" name="note" value="manual adjust"/>
+					<button class="px-2 py-1 border border-gray-300 text-xs rounded hover:bg-gray-100">±Pt</button>
+				</form>
+			</div>
+		</td>
+	</tr>
+}
+
+// userDetailPage — chi tiết user + form edit gộp status+fraud_score+note (spec §6).
+templ userDetailPage(c *fiber.Ctx, u userDetail, ledger []ledgerRow) {
+	@page(c, "User") {
+		<h1 class="text-2xl font-bold mb-1">{ "@" + u.Handle } <span class="text-gray-500 font-normal text-base">{ u.ZaloID }</span></h1>
+		<div class="bg-white rounded-xl p-4 shadow-sm mb-4">
+			<p class="mb-2">Name: <b>{ u.Name }</b> · Status: @statusPillC(u.Status) · Fraud: { u.FraudScore } · Goal: { u.DailyGoal }</p>
+			<p class="text-sm text-gray-500">{ t(c, "Tham gia", "Joined") }: { u.CreatedAt.Format("02/01/2006 15:04") }</p>
+		</div>
+
+		<form method="post" action={ templ.SafeURL("/admin/users/" + u.ID + "/update") } class="bg-white rounded-xl p-4 shadow-sm mb-4">
+			<h2 class="text-lg font-semibold mb-3">{ t(c, "Chỉnh sửa user", "Edit user") }</h2>
+			<div class="flex flex-wrap gap-4 mb-3">
+				<div class="flex flex-col gap-1">
+					<label class="text-xs uppercase tracking-wider text-gray-500">Status</label>
+					<select name="status" class="px-3 py-2 border border-gray-300 rounded text-sm min-w-[160px]">
+						<option value="active" selected?={ u.Status == "active" }>active</option>
+						<option value="suspended" selected?={ u.Status == "suspended" }>suspended</option>
+						<option value="banned" selected?={ u.Status == "banned" }>banned</option>
+					</select>
+				</div>
+				<div class="flex flex-col gap-1">
+					<label class="text-xs uppercase tracking-wider text-gray-500">Fraud score (0-100)</label>
+					<input name="fraud_score" type="number" min="0" max="100" value={ u.FraudScore } class="px-3 py-2 border border-gray-300 rounded text-sm w-32"/>
+				</div>
+				<div class="flex flex-col gap-1 flex-1 min-w-[300px]">
+					<label class="text-xs uppercase tracking-wider text-gray-500">Note ({ t(c, "ghi vào audit_log", "logged to audit_log") })</label>
+					<input name="note" maxlength="200" placeholder={ t(c, "Lý do, ticket #, ...", "Reason, ticket #, ...") } class="px-3 py-2 border border-gray-300 rounded text-sm"/>
+				</div>
+			</div>
+			<button type="submit" class="px-4 py-2 bg-brand text-white rounded text-sm font-medium">{ t(c, "Lưu thay đổi", "Save changes") }</button>
+		</form>
+
+		<h2 class="text-lg font-semibold mb-2">{ t(c, "Ledger gần đây", "Recent ledger") }</h2>
+		<div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+			<table class="w-full text-sm">
+				<thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+					<tr>
+						<th class="px-3 py-2 text-left">Delta</th>
+						<th class="px-3 py-2 text-left">Reason</th>
+						<th class="px-3 py-2 text-left">Ref</th>
+						<th class="px-3 py-2 text-left">Note</th>
+						<th class="px-3 py-2 text-left">Time</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, l := range ledger {
+						<tr class="border-t border-gray-100">
+							<td class="px-3 py-2 font-mono">{ deltaStr(l.Delta) }</td>
+							<td class="px-3 py-2">{ l.Reason }</td>
+							<td class="px-3 py-2"><code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{ l.Ref }</code></td>
+							<td class="px-3 py-2 text-gray-600">{ l.Note }</td>
+							<td class="px-3 py-2 text-gray-500">{ l.CreatedAt.Format("02/01 15:04") }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+// deltaStr trả về "+N" / "-N".
+func deltaStr(n int) string {
+	if n >= 0 {
+		return "+" + formatInt(n)
+	}
+	return "-" + formatInt(-n)
+}

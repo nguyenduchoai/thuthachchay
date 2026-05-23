@@ -65,9 +65,10 @@ make sqlc                        # nếu thêm bảng/cột → gen lại store
 ## 5. Sửa OpenAPI
 
 1. Sửa `services/api/openapi.yaml`.
-2. Wire handler ở `internal/httpx/routes.go`.
-3. Chạy `make openapi` → cập nhật `packages/api-client/src/generated/`.
-4. Miniapp import từ `@buocvang/api-client`.
+2. Wire handler thật trong `services/api/internal/server` và package domain tương ứng.
+3. Cập nhật `packages/api-client/src/index.ts` để SDK khớp spec.
+4. Miniapp import API qua `@buocvang/api-client` từ `apps/miniapp/src/services/endpoints.ts`.
+5. Chạy `npx --yes @redocly/cli@latest lint services/api/openapi.yaml`.
 
 ## 6. Test convention
 

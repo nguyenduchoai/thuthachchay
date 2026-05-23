@@ -7,9 +7,13 @@ export default function LeaderboardPreview() {
   const { t } = useTranslation();
   const nav = useNavigate();
   const [top, setTop] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    globalLeaderboard().then((r) => setTop(r.items.slice(0, 6))).catch(() => setTop([]));
+    globalLeaderboard()
+      .then((r) => setTop(r.items.slice(0, 6)))
+      .catch(() => setTop([]))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
@@ -22,21 +26,19 @@ export default function LeaderboardPreview() {
       <p className="muted">{t('onboarding.leaderboard.subtitle', 'Vượt bạn bè trên bảng xếp hạng toàn cầu.')}</p>
 
       <ol className="leaderboard">
-        {top.length === 0
-          ? Array.from({ length: 6 }).map((_, i) => (
-              <li key={i} className="leaderboard__row glass leaderboard__row--skeleton">
-                <span className="rank">#{i + 1}</span>
-                <span className="handle muted">@steppa_user_{i + 1}</span>
-                <span className="value muted">{(8_000_000 - i * 600_000).toLocaleString('vi-VN')}</span>
-              </li>
-            ))
-          : top.map((e) => (
-              <li key={e.user_id} className="leaderboard__row glass">
-                <span className="rank">#{e.rank}</span>
-                <span className="handle">{e.user_id.slice(0, 10)}…</span>
-                <span className="value">{Math.round(e.steps).toLocaleString('vi-VN')}</span>
-              </li>
-            ))}
+        {loading && <li className="leaderboard__row glass muted">{t('common.loading')}</li>}
+        {!loading && top.length === 0 && (
+          <li className="leaderboard__row glass muted">
+            {t('home.noLeaderboard', 'Chưa có dữ liệu xếp hạng.')}
+          </li>
+        )}
+        {!loading && top.map((e) => (
+          <li key={e.user_id} className="leaderboard__row glass">
+            <span className="rank">#{e.rank}</span>
+            <span className="handle">{e.user_id.slice(0, 10)}…</span>
+            <span className="value">{Math.round(e.steps).toLocaleString('vi-VN')}</span>
+          </li>
+        ))}
       </ol>
 
       <div className="cta-sticky">

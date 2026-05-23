@@ -58,7 +58,7 @@ export default function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/settings" element={<ProfileSettings />} />
           <Route path="/profile/edit" element={<ProfileEdit />} />
-          <Route path="/checkout/:tx" element={<Checkout />} />
+          <Route path="/checkout/:id" element={<Checkout />} />
           <Route path="/invite" element={<Invite />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

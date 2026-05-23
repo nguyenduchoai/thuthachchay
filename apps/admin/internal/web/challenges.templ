@@ -1,0 +1,163 @@
+package web
+
+import (
+	"github.com/gofiber/fiber/v2"
+)
+
+// ─── LIST ────────────────────────────────────────────────────────────────────
+
+templ challengesListPage(c *fiber.Ctx, list []challengeRow, total, pageN, perPage int, statusF string) {
+	@page(c, "Challenges") {
+		<h1 class="text-2xl font-bold mb-4">{ t(c, "Thử thách", "Challenges") }</h1>
+		<form method="get" class="bg-white rounded-xl p-4 shadow-sm mb-4 flex flex-wrap gap-3 items-end">
+			<div class="flex flex-col gap-1">
+				<label class="text-xs uppercase tracking-wider text-gray-500">{ t(c, "Trạng thái", "Status") }</label>
+				<select name="status" class="px-3 py-2 border border-gray-300 rounded text-sm">
+					<option value="">{ t(c, "Tất cả", "All") }</option>
+					for _, s := range []string{"draft", "open", "live", "settling", "settled", "cancelled"} {
+						<option value={ s } selected?={ statusF == s }>{ s }</option>
+					}
+				</select>
+			</div>
+			<button type="submit" class="px-4 py-2 bg-brand text-white rounded text-sm font-medium">{ t(c, "Lọc", "Filter") }</button>
+		</form>
+		<div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+			<table class="w-full text-sm">
+				<thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+					<tr>
+						<th class="px-3 py-2 text-left">Name</th>
+						<th class="px-3 py-2 text-left">Vis</th>
+						<th class="px-3 py-2 text-left">Status</th>
+						<th class="px-3 py-2 text-left">Daily</th>
+						<th class="px-3 py-2 text-left">Days</th>
+						<th class="px-3 py-2 text-left">Entry</th>
+						<th class="px-3 py-2 text-left">Pool</th>
+						<th class="px-3 py-2 text-left">{ t(c, "Players", "Players") }</th>
+						<th class="px-3 py-2 text-left">Range</th>
+						<th class="px-3 py-2 text-left">{ t(c, "Actions", "Actions") }</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, r := range list {
+						@challengeRowTR(c, r)
+					}
+				</tbody>
+			</table>
+		</div>
+		@pager(c, total, perPage, pageN)
+	}
+}
+
+templ challengeRowTR(c *fiber.Ctx, r challengeRow) {
+	<tr class="border-t border-gray-100">
+		<td class="px-3 py-2"><a href={ templ.SafeURL("/admin/challenges/" + r.ID) } class="text-brand hover:underline">{ r.Name }</a></td>
+		<td class="px-3 py-2 text-xs text-gray-600">{ r.Visibility }</td>
+		<td class="px-3 py-2">@statusPillC(r.Status)</td>
+		<td class="px-3 py-2">{ r.DailyTarget }</td>
+		<td class="px-3 py-2">{ r.Duration }</td>
+		<td class="px-3 py-2">{ r.Entry }</td>
+		<td class="px-3 py-2">{ formatInt(r.Pool) } đ</td>
+		<td class="px-3 py-2">{ r.Participants }</td>
+		<td class="px-3 py-2 text-gray-500 whitespace-nowrap">{ r.StartDate.Format("02/01") } → { r.EndDate.Format("02/01") }</td>
+		<td class="px-3 py-2">
+			<div class="flex flex-wrap gap-1">
+				<a href={ templ.SafeURL("/admin/challenges/" + r.ID) } class="px-2 py-1 border border-gray-300 text-xs rounded hover:bg-gray-100">{ t(c, "Chi tiết", "Detail") }</a>
+				if r.Status == "open" || r.Status == "live" {
+					<form method="post" action={ templ.SafeURL("/admin/challenges/" + r.ID + "/settle") } class="inline">
+						<button class="px-2 py-1 bg-brand text-white text-xs rounded" data-confirm={ t(c, "Settle ngay?", "Settle now?") }>Settle</button>
+					</form>
+					<form method="post" action={ templ.SafeURL("/admin/challenges/" + r.ID + "/cancel") } class="inline">
+						<button class="px-2 py-1 bg-red-600 text-white text-xs rounded" data-confirm={ t(c, "Cancel?", "Cancel?") }>Cancel</button>
+					</form>
+				}
+			</div>
+		</td>
+	</tr>
+}
+
+// ─── DETAIL ──────────────────────────────────────────────────────────────────
+
+templ challengeDetailPage(c *fiber.Ctx, ch challengeDetailData, parts []participantRow, prev settlePreview) {
+	@page(c, "Challenge") {
+		<h1 class="text-2xl font-bold mb-1">{ ch.Name } <span class="text-gray-500 font-normal text-base">{ ch.Visibility } · </span>@statusPillC(ch.Status)</h1>
+		<div class="bg-white rounded-xl p-4 shadow-sm mb-4">
+			<p class="text-gray-700 mb-3">{ ch.Description }</p>
+			<div class="flex flex-wrap gap-4 text-sm">
+				<span><b>Daily target:</b> { formatInt(ch.DailyTarget) }</span>
+				<span><b>Duration:</b> { ch.Duration } { t(c, "ngày", "days") }</span>
+				<span><b>Range:</b> { ch.StartDate.Format("02/01/2006") } → { ch.EndDate.Format("02/01/2006") }</span>
+				<span><b>Entry:</b> { ch.Entry } đ</span>
+				<span><b>Pool:</b> { formatInt(ch.Pool) } đ</span>
+				<span><b>Players:</b> { len(parts) } / { ch.MaxP }</span>
+			</div>
+			if ch.Status == "open" || ch.Status == "live" {
+				<div class="flex flex-wrap gap-2 mt-3">
+					<form method="post" action={ templ.SafeURL("/admin/challenges/" + ch.ID + "/settle") } class="inline">
+						<button class="px-3 py-1.5 bg-brand text-white text-sm rounded font-medium" data-confirm={ t(c, "Chuyển sang settling cho worker xử lý?", "Mark as settling for worker?") }>{ t(c, "Trigger Settle", "Trigger Settle") }</button>
+					</form>
+					<form method="post" action={ templ.SafeURL("/admin/challenges/" + ch.ID + "/cancel") } class="inline">
+						<button class="px-3 py-1.5 bg-red-600 text-white text-sm rounded font-medium" data-confirm={ t(c, "Cancel?", "Cancel?") }>{ t(c, "Cancel", "Cancel") }</button>
+					</form>
+				</div>
+			}
+		</div>
+
+		<div class="bg-white rounded-xl p-4 shadow-sm mb-4">
+			<h2 class="text-lg font-semibold mb-3">{ t(c, "Dự kiến chia thưởng", "Settle preview") }</h2>
+			<div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+				@kpiTile(t(c, "Players", "Players"), itoa(prev.Players))
+				@kpiTile(t(c, "Winners", "Winners"), itoa(prev.Winners))
+				@kpiTile(t(c, "Tổng pool", "Total pool"), formatInt(ch.Pool)+" đ")
+				@kpiTile(t(c, "Host (10% public)", "Host (10% public)"), formatInt(prev.HostShare)+" đ")
+				@kpiTile(t(c, "Mỗi winner nhận", "Per winner"), formatInt(prev.PerWinner)+" đ")
+			</div>
+			<p class="text-sm text-gray-500 mt-3">
+				{ t(c, "Quy ước: winner = đủ daily_target trong tất cả ngày. Worker thực thi khi trigger Settle.",
+					"Rule: winner = met daily_target every day. Worker executes when Settle is triggered.") }
+			</p>
+		</div>
+
+		<h2 class="text-lg font-semibold mb-2">{ t(c, "Người tham gia", "Participants") }</h2>
+		<div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+			<table class="w-full text-sm">
+				<thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+					<tr>
+						<th class="px-3 py-2 text-left">Handle</th>
+						<th class="px-3 py-2 text-left">{ t(c, "Tham gia", "Joined") }</th>
+						<th class="px-3 py-2 text-left">State</th>
+						<th class="px-3 py-2 text-left">{ t(c, "Tổng steps", "Total steps") }</th>
+						<th class="px-3 py-2 text-left">{ t(c, "Ngày đạt", "Days hit") }/{ prev.RequiredDays }</th>
+						<th class="px-3 py-2 text-left">{ t(c, "Winner?", "Winner?") }</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, p := range parts {
+						@participantTR(c, p)
+					}
+				</tbody>
+			</table>
+		</div>
+	}
+}
+
+templ participantTR(c *fiber.Ctx, p participantRow) {
+	<tr class="border-t border-gray-100">
+		<td class="px-3 py-2"><a href={ templ.SafeURL("/admin/users/" + p.UserID) } class="text-brand hover:underline">{ "@" + p.Handle }</a></td>
+		<td class="px-3 py-2 text-gray-500">{ p.JoinedAt.Format("02/01 15:04") }</td>
+		<td class="px-3 py-2">@statusPillC(p.State)</td>
+		<td class="px-3 py-2">{ formatInt(int(p.TotalSteps)) }</td>
+		<td class="px-3 py-2">{ p.DaysOnGoal }</td>
+		<td class="px-3 py-2">
+			if p.Winner {
+				@pillC("✓", "bg-emerald-100 text-emerald-800")
+			} else {
+				@pillC("—", "bg-gray-200 text-gray-500")
+			}
+		</td>
+	</tr>
+}
+
+// itoa lcoal alias để dùng trong templ context.
+func itoa(n int) string {
+	return formatInt(n)
+}

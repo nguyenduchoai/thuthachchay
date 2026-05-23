@@ -37,7 +37,7 @@ if git diff --cached --quiet; then
 else
   git commit -m "feat(admin,miniapp): hoàn thiện 21 page UI thật + admin HTMX actions
 
-- Mini App: implement nốt 8 page placeholder (Checkout, Create, CreateNew,
+- Mini App: implement các page còn thiếu (Checkout, Create, CreateNew,
   Discover, Profile, ProfileSettings, ProfileEdit, LeaderboardPreview) với
   data fetching thật, validation realtime, i18n đầy đủ.
 - Admin: dashboard KPI, 16 endpoint với HTMX form action (suspend/activate

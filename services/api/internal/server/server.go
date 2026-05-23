@@ -26,16 +26,16 @@ import (
 )
 
 type Deps struct {
-	Cfg     *config.Config
-	Pool    *db.Pool
-	Redis   *redis.Client
-	Store   *store.Store
-	JWT     *auth.JWTManager
-	Zalo    *auth.ZaloClient
-	LB      *leaderboard.Client
-	AF      *antifraud.Checker
-	Notif   *notifications.Client
-	Strava  *strava.Client
+	Cfg    *config.Config
+	Pool   *db.Pool
+	Redis  *redis.Client
+	Store  *store.Store
+	JWT    *auth.JWTManager
+	Zalo   *auth.ZaloClient
+	LB     *leaderboard.Client
+	AF     *antifraud.Checker
+	Notif  *notifications.Client
+	Strava *strava.Client
 }
 
 // Build dựng tất cả services + handlers + register routes lên Fiber app.
@@ -81,7 +81,7 @@ func Build(ctx context.Context, cfg *config.Config) (*fiber.App, *Deps, error) {
 	walletH := wallet.NewHandler(walletSvc, st)
 	vouH := vouchers.NewHandler(pool, st)
 	refH := referrals.NewHandler(pool, st)
-	stravaH := strava.NewHandler(stravaCli, cfg)
+	stravaH := strava.NewHandler(stravaCli, cfg, stepsSvc)
 
 	registerRoutes(app, deps, authH, usersH, chH, stepsH, walletH, vouH, refH, stravaH, notif)
 	return app, deps, nil
@@ -119,7 +119,7 @@ func registerRoutes(app *fiber.App, d *Deps,
 	v1.Post("/username/check", usersH.CheckHandle)
 
 	// Authenticated routes
-	jwtMw := middleware.RequireJWT(d.JWT)
+	jwtMw := middleware.RequireActiveJWT(d.JWT, d.Store.Users)
 	priv := v1.Group("", jwtMw)
 
 	priv.Get("/me", usersH.Me)

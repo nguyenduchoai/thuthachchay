@@ -1,6 +1,7 @@
 package challenges
 
 import (
+	"errors"
 	"strconv"
 	"time"
 
@@ -91,6 +92,9 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 		MaxParticipants: req.MaxParticipants,
 	})
 	if err != nil {
+		if errors.Is(err, store.ErrInsufficientBalance) {
+			return c.Status(fiber.StatusPaymentRequired).JSON(fiber.Map{"error": fiber.Map{"code": "insufficient_points", "message": err.Error()}})
+		}
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": fiber.Map{"message": err.Error()}})
 	}
 	return c.Status(fiber.StatusCreated).JSON(challengeAPI(ch))
@@ -104,7 +108,14 @@ func (h *Handler) Join(c *fiber.Ctx) error {
 	id := c.Params("id")
 	idem := c.Get("X-Idempotency-Key")
 	if err := h.svc.Join(c.Context(), id, uid, idem); err != nil {
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": fiber.Map{"message": err.Error()}})
+		switch {
+		case errors.Is(err, store.ErrInsufficientBalance):
+			return c.Status(fiber.StatusPaymentRequired).JSON(fiber.Map{"error": fiber.Map{"code": "insufficient_points", "message": err.Error()}})
+		case errors.Is(err, ErrChallengeFull):
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": fiber.Map{"code": "challenge_full", "message": err.Error()}})
+		default:
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": fiber.Map{"message": err.Error()}})
+		}
 	}
 	return c.JSON(fiber.Map{"ok": true})
 }

@@ -33,11 +33,11 @@ func NewService(pool *db.Pool, st *store.Store, lb *leaderboard.Client, af *anti
 }
 
 type IngestRequest struct {
-	UserID   string
-	Day      time.Time
-	Source   string
-	Chunks   []Chunk
-	Device   Device
+	UserID string
+	Day    time.Time
+	Source string
+	Chunks []Chunk
+	Device Device
 }
 
 type Chunk struct {
@@ -56,12 +56,12 @@ type Device struct {
 }
 
 type IngestResult struct {
-	Accepted      int
-	Rejected      int
-	DayTotal      int
-	Flagged       bool
-	ScoreDelta    int
-	FlagReasons   []string
+	Accepted    int
+	Rejected    int
+	DayTotal    int
+	Flagged     bool
+	ScoreDelta  int
+	FlagReasons []string
 }
 
 func (s *service) Ingest(ctx context.Context, req IngestRequest) (*IngestResult, error) {
@@ -76,8 +76,9 @@ func (s *service) Ingest(ctx context.Context, req IngestRequest) (*IngestResult,
 		day = time.Now().UTC().Truncate(24 * time.Hour)
 	}
 	res := &IngestResult{}
+	acceptedSteps := 0
 	err := db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
-		acceptedSteps := 0
+		txAcceptedSteps := 0
 		for _, ch := range req.Chunks {
 			flagged, reasons := s.af.Check(ch.Steps, ch.Cadence, ch.StartedAt, ch.EndedAt)
 			ev := store.StepEvent{
@@ -98,19 +99,20 @@ func (s *service) Ingest(ctx context.Context, req IngestRequest) (*IngestResult,
 				return err
 			}
 			res.Accepted++
-			acceptedSteps += ch.Steps
+			txAcceptedSteps += ch.Steps
 			if flagged {
 				res.Flagged = true
 			}
 		}
-		if acceptedSteps > 0 {
-			if err := s.st.Steps.UpsertDaily(ctx, tx, req.UserID, day, acceptedSteps, req.Source, res.Flagged); err != nil {
+		if txAcceptedSteps > 0 {
+			if err := s.st.Steps.UpsertDaily(ctx, tx, req.UserID, day, txAcceptedSteps, req.Source, res.Flagged); err != nil {
 				return err
 			}
-			if err := s.st.Steps.IncrementChallengeProgress(ctx, tx, req.UserID, day, acceptedSteps); err != nil {
+			if err := s.st.Steps.IncrementChallengeProgress(ctx, tx, req.UserID, day, txAcceptedSteps); err != nil {
 				return err
 			}
 		}
+		acceptedSteps = txAcceptedSteps
 		if res.Flagged {
 			res.ScoreDelta = 5
 			_ = s.st.Users.IncrementFraudScore(ctx, req.UserID, 5)
@@ -120,21 +122,13 @@ func (s *service) Ingest(ctx context.Context, req IngestRequest) (*IngestResult,
 	if err != nil {
 		return nil, err
 	}
+	stepsTotal, _ := s.st.Steps.GetDailyTotal(ctx, req.UserID, day)
+	res.DayTotal = stepsTotal
 	// Leaderboard update (best effort).
-	if s.lb != nil && res.Accepted > 0 {
-		stepsTotal, _ := s.st.Steps.GetDailyTotal(ctx, req.UserID, day)
-		res.DayTotal = stepsTotal
-		_ = s.lb.AddSteps(ctx, leaderboard.GlobalKey(), req.UserID, float64(sumChunkSteps(req.Chunks)))
+	if s.lb != nil && acceptedSteps > 0 {
+		_ = s.lb.AddSteps(ctx, leaderboard.GlobalKey(), req.UserID, float64(acceptedSteps))
 	}
 	return res, nil
-}
-
-func sumChunkSteps(cs []Chunk) int {
-	n := 0
-	for _, c := range cs {
-		n += c.Steps
-	}
-	return n
 }
 
 func (s *service) History(ctx context.Context, userID string, from, to time.Time) ([]store.DailySteps, error) {

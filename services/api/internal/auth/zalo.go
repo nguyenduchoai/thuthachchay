@@ -15,34 +15,34 @@ type ZaloClient struct {
 	HTTP   *http.Client
 	AppID  string
 	Secret string
-	// MockMode: dev — bỏ qua call Zalo API, trả về user id giả từ token.
-	MockMode bool
+	// DevMode is local-only and accepts "dev:<zalo_id>" tokens without calling Zalo.
+	DevMode bool
 }
 
 type ZaloUser struct {
-	ID       string
-	Name     string
-	Picture  string
+	ID      string
+	Name    string
+	Picture string
 }
 
-func NewZaloClient(appID, secret string, mock bool) *ZaloClient {
+func NewZaloClient(appID, secret string, devMode bool) *ZaloClient {
 	return &ZaloClient{
-		HTTP:     &http.Client{Timeout: 8 * time.Second},
-		AppID:    appID,
-		Secret:   secret,
-		MockMode: mock,
+		HTTP:    &http.Client{Timeout: 8 * time.Second},
+		AppID:   appID,
+		Secret:  secret,
+		DevMode: devMode,
 	}
 }
 
 func (c *ZaloClient) GetUser(ctx context.Context, accessToken string) (*ZaloUser, error) {
-	if c.MockMode || accessToken == "" {
+	if c.DevMode || accessToken == "" {
 		// Dev mode: chấp nhận token "dev:<zalo_id>" để test nhanh.
 		const devPrefix = "dev:"
 		if len(accessToken) > len(devPrefix) && accessToken[:len(devPrefix)] == devPrefix {
 			id := accessToken[len(devPrefix):]
 			return &ZaloUser{ID: id, Name: "Dev " + id, Picture: ""}, nil
 		}
-		// Fallback completely fake user id để dev có thể chạy.
+		// Local fallback để dev có thể chạy khi chưa có Zalo credentials.
 		return &ZaloUser{ID: "dev-anon-" + accessToken[:min(len(accessToken), 8)], Name: "Dev User"}, nil
 	}
 	u := "https://graph.zalo.me/v2.0/me?fields=id,name,picture&access_token=" + url.QueryEscape(accessToken)

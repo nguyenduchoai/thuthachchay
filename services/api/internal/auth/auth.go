@@ -24,5 +24,3 @@ type LoginResult struct {
 	ExpiresIn    int    // seconds
 	UserID       string // uuid
 }
-
-// TODO: implement struct cụ thể khi store/redis ready.

@@ -18,11 +18,35 @@ PR merge → main → CI green
 
 ## Build container
 
+Backend images use Go 1.25 and generate admin templ files during build.
+
 ```bash
 docker build -f deploy/Dockerfile.api    -t buocvang/api:$(git rev-parse --short HEAD)    .
 docker build -f deploy/Dockerfile.worker -t buocvang/worker:$(git rev-parse --short HEAD) .
 docker build -f deploy/Dockerfile.admin  -t buocvang/admin:$(git rev-parse --short HEAD)  .
 docker build -f deploy/Dockerfile.miniapp -t buocvang/miniapp:$(git rev-parse --short HEAD) .
+```
+
+## VPS env tối thiểu
+
+```bash
+APP_ENV=prod
+LOG_LEVEL=info
+HTTP_LISTEN_ADDR=:8080
+ADMIN_LISTEN_ADDR=:8081
+DATABASE_URL=postgres://USER:PASS@HOST:5432/buocvang?sslmode=require
+REDIS_URL=redis://HOST:6379/0
+CORS_ALLOWED_ORIGINS=https://zalo.me,https://h5.zdn.vn
+JWT_PRIVATE_KEY_PATH=/run/secrets/jwt_private.pem
+JWT_PUBLIC_KEY_PATH=/run/secrets/jwt_public.pem
+ADMIN_USER=admin
+ADMIN_PASS=<strong-password>
+ZALO_APP_ID=<zalo-app-id>
+ZALO_APP_SECRET=<zalo-app-secret>
+STRAVA_CLIENT_ID=<strava-client-id>
+STRAVA_CLIENT_SECRET=<strava-client-secret>
+STRAVA_REDIRECT_URI=https://api.buocvang.vn/v1/strava/oauth/callback
+STRAVA_VERIFY_TOKEN=<random-token>
 ```
 
 ## Migration trên prod

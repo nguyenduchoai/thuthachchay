@@ -26,6 +26,7 @@ type LedgerEntry struct {
 type WalletStore struct{ pool *db.Pool }
 
 var ErrDuplicateIdempotencyKey = errors.New("idempotency_key trùng")
+var ErrInsufficientBalance = errors.New("không đủ điểm")
 
 // Balance dùng SUM ledger.
 func (s *WalletStore) Balance(ctx context.Context, userID string) (int, error) {
@@ -57,6 +58,9 @@ func (s *WalletStore) AppendEntry(ctx context.Context, tx pgx.Tx, e LedgerEntry)
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return ErrDuplicateIdempotencyKey
+		}
+		if errors.As(err, &pgErr) && pgErr.Code == "P0001" && pgErr.Message == "insufficient_points" {
+			return ErrInsufficientBalance
 		}
 		return err
 	}

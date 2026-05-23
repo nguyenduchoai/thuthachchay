@@ -8,7 +8,8 @@ MINIAPP_DIR := apps/miniapp
 
 GOOSE := goose
 SQLC := sqlc
-TEMPL := templ
+# Dùng `go run` để không bắt buộc cài CLI riêng (cài 1 lần thì local hơn).
+TEMPL := go run github.com/a-h/templ/cmd/templ@latest
 
 .PHONY: help
 help: ## Hiển thị danh sách target
@@ -46,7 +47,7 @@ test-ts: ## Test TypeScript
 build: build-go build-ts ## Build tất cả
 
 .PHONY: build-go
-build-go: ## Build Go binaries
+build-go: templ ## Build Go binaries (auto-regen templ trước)
 	mkdir -p $(GO_API_DIR)/bin $(GO_ADMIN_DIR)/bin
 	cd $(GO_API_DIR) && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o bin/api ./cmd/api
 	cd $(GO_API_DIR) && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o bin/worker ./cmd/worker
@@ -67,7 +68,7 @@ worker: ## Chạy background worker
 	cd $(GO_API_DIR) && go run ./cmd/worker
 
 .PHONY: admin
-admin: ## Chạy admin web (port 8081)
+admin: templ ## Chạy admin web (port 8081)
 	cd $(GO_ADMIN_DIR) && go run ./cmd/admin
 
 .PHONY: miniapp
@@ -93,8 +94,8 @@ sqlc: ## Sinh Go code từ SQL queries
 	cd $(GO_API_DIR) && $(SQLC) generate
 
 .PHONY: templ
-templ: ## Sinh Go code từ admin templates
-	cd $(GO_ADMIN_DIR) && $(TEMPL) generate
+templ: ## Sinh Go code từ admin templates (chạy trước go build/run)
+	cd $(GO_ADMIN_DIR) && $(TEMPL) generate -path internal/web
 
 .PHONY: openapi
 openapi: ## Sinh TS SDK từ openapi.yaml

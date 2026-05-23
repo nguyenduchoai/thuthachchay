@@ -47,7 +47,7 @@ ok "DB schema + seed sẵn sàng"
 
 color "4/6 ▸ Build Go binaries"
 (cd services/api && go mod tidy && go build -o bin/api ./cmd/api && go build -o bin/worker ./cmd/worker)
-(cd apps/admin && go mod tidy && go build -o bin/admin ./cmd/admin)
+(cd apps/admin && go mod tidy && go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate -path internal/web && go build -o bin/admin ./cmd/admin)
 ok "Đã build api / worker / admin"
 
 color "5/6 ▸ Cài deps Mini App (nếu chưa)"

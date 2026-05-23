@@ -1,0 +1,63 @@
+package web
+
+import (
+	"strconv"
+
+	"github.com/gofiber/fiber/v2"
+)
+
+templ fraudListPage(c *fiber.Ctx, events []fraudRow, total, pageN, perPage int) {
+	@page(c, "Fraud") {
+		<h1 class="text-2xl font-bold mb-1">{ t(c, "Hàng đợi Fraud", "Fraud Queue") }</h1>
+		<p class="text-sm text-gray-500 mb-4">
+			{ t(c, "Approve = bỏ flag + giảm fraud_score 10. Reject = suspend user + fraud_score=100.",
+				"Approve = clear flag + drop fraud_score by 10. Reject = suspend user + fraud_score=100.") }
+		</p>
+		<div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+			<table class="w-full text-sm">
+				<thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+					<tr>
+						<th class="px-3 py-2 text-left">ID</th>
+						<th class="px-3 py-2 text-left">User</th>
+						<th class="px-3 py-2 text-left">Source</th>
+						<th class="px-3 py-2 text-left">Steps</th>
+						<th class="px-3 py-2 text-left">{ t(c, "Thời gian", "Time") }</th>
+						<th class="px-3 py-2 text-left">{ t(c, "Lý do", "Reason") }</th>
+						<th class="px-3 py-2 text-left">{ t(c, "Hành động", "Actions") }</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, e := range events {
+						@fraudRowTR(c, e)
+					}
+				</tbody>
+			</table>
+		</div>
+		@pager(c, total, perPage, pageN)
+	}
+}
+
+templ fraudRowTR(c *fiber.Ctx, e fraudRow) {
+	<tr class="border-t border-gray-100">
+		<td class="px-3 py-2 font-mono text-xs">{ strconv.FormatInt(e.ID, 10) }</td>
+		<td class="px-3 py-2">
+			<a href={ templ.SafeURL("/admin/users/" + e.UserID) } class="text-brand hover:underline">{ shortID(e.UserID) }…</a>
+		</td>
+		<td class="px-3 py-2">{ e.Source }</td>
+		<td class="px-3 py-2">{ formatInt(e.Steps) }</td>
+		<td class="px-3 py-2 text-gray-500">{ e.StartedAt.Format("02/01 15:04") }</td>
+		<td class="px-3 py-2">@pillC(e.FlagReason, "bg-red-100 text-red-700")</td>
+		<td class="px-3 py-2">
+			<div class="flex gap-1">
+				<form method="post" action={ templ.SafeURL("/admin/fraud-queue/" + strconv.FormatInt(e.ID, 10) + "/decide") } class="inline">
+					<input type="hidden" name="decision" value="approve"/>
+					<button class="px-2 py-1 bg-brand text-white text-xs rounded">Approve</button>
+				</form>
+				<form method="post" action={ templ.SafeURL("/admin/fraud-queue/" + strconv.FormatInt(e.ID, 10) + "/decide") } class="inline">
+					<input type="hidden" name="decision" value="reject"/>
+					<button class="px-2 py-1 bg-red-600 text-white text-xs rounded">Reject</button>
+				</form>
+			</div>
+		</td>
+	</tr>
+}

@@ -9,9 +9,10 @@ import (
 )
 
 type Config struct {
-	AppEnv         string `mapstructure:"APP_ENV"`
-	LogLevel       string `mapstructure:"LOG_LEVEL"`
-	HTTPListenAddr string `mapstructure:"HTTP_LISTEN_ADDR"`
+	AppEnv             string `mapstructure:"APP_ENV"`
+	LogLevel           string `mapstructure:"LOG_LEVEL"`
+	HTTPListenAddr     string `mapstructure:"HTTP_LISTEN_ADDR"`
+	CORSAllowedOrigins string `mapstructure:"CORS_ALLOWED_ORIGINS"`
 
 	DatabaseURL             string        `mapstructure:"DATABASE_URL"`
 	DatabaseMaxOpenConns    int           `mapstructure:"DATABASE_MAX_OPEN_CONNS"`
@@ -34,10 +35,10 @@ type Config struct {
 	StravaRedirectURI  string `mapstructure:"STRAVA_REDIRECT_URI"`
 	StravaVerifyToken  string `mapstructure:"STRAVA_VERIFY_TOKEN"`
 
-	AntiFraudMaxDailySteps      int `mapstructure:"ANTIFRAUD_MAX_DAILY_STEPS"`
-	AntiFraudMinCadenceMs       int `mapstructure:"ANTIFRAUD_MIN_CADENCE_PERIOD_MS"`
-	AntiFraudMaxCadenceMs       int `mapstructure:"ANTIFRAUD_MAX_CADENCE_PERIOD_MS"`
-	AntiFraudAutoSuspendScore   int `mapstructure:"ANTIFRAUD_AUTO_SUSPEND_SCORE"`
+	AntiFraudMaxDailySteps    int `mapstructure:"ANTIFRAUD_MAX_DAILY_STEPS"`
+	AntiFraudMinCadenceMs     int `mapstructure:"ANTIFRAUD_MIN_CADENCE_PERIOD_MS"`
+	AntiFraudMaxCadenceMs     int `mapstructure:"ANTIFRAUD_MAX_CADENCE_PERIOD_MS"`
+	AntiFraudAutoSuspendScore int `mapstructure:"ANTIFRAUD_AUTO_SUSPEND_SCORE"`
 }
 
 func Load() (*Config, error) {
@@ -63,6 +64,7 @@ func Load() (*Config, error) {
 	// nếu chưa thấy key, nên gọi BindEnv tường minh).
 	keys := []string{
 		"APP_ENV", "LOG_LEVEL", "HTTP_LISTEN_ADDR",
+		"CORS_ALLOWED_ORIGINS",
 		"DATABASE_URL", "DATABASE_MAX_OPEN_CONNS", "DATABASE_MAX_IDLE_CONNS", "DATABASE_CONN_MAX_LIFETIME",
 		"REDIS_URL",
 		"JWT_PRIVATE_KEY_PATH", "JWT_PUBLIC_KEY_PATH", "JWT_ACCESS_TTL", "JWT_REFRESH_TTL",

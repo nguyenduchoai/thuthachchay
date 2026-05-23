@@ -59,6 +59,10 @@ func (s *ChallengesStore) Get(ctx context.Context, id string) (*Challenge, error
 	return scanChallenge(s.pool.QueryRow(ctx, `SELECT `+challengeColumns+` FROM challenges WHERE id=$1`, id))
 }
 
+func (s *ChallengesStore) GetForUpdate(ctx context.Context, tx pgx.Tx, id string) (*Challenge, error) {
+	return scanChallenge(tx.QueryRow(ctx, `SELECT `+challengeColumns+` FROM challenges WHERE id=$1 FOR UPDATE`, id))
+}
+
 func (s *ChallengesStore) List(ctx context.Context, status string, limit, offset int) ([]Challenge, error) {
 	if limit <= 0 {
 		limit = 20
@@ -121,11 +125,25 @@ func (s *ChallengesStore) AddPrizePool(ctx context.Context, tx pgx.Tx, id string
 	return err
 }
 
-func (s *ChallengesStore) AddParticipant(ctx context.Context, tx pgx.Tx, challengeID, userID string, entryPaid int) error {
-	_, err := tx.Exec(ctx, `INSERT INTO challenge_participants (challenge_id, user_id, entry_paid, state)
-		VALUES ($1, $2, $3, 'in')
-		ON CONFLICT (challenge_id, user_id) DO NOTHING`, challengeID, userID, entryPaid)
-	return err
+func (s *ChallengesStore) AddParticipant(ctx context.Context, tx pgx.Tx, challengeID, userID string, entryPaid int) (bool, error) {
+	tag, err := tx.Exec(ctx, `INSERT INTO challenge_participants (challenge_id, user_id, entry_paid, state)
+			VALUES ($1, $2, $3, 'in')
+			ON CONFLICT (challenge_id, user_id) DO NOTHING`, challengeID, userID, entryPaid)
+	return tag.RowsAffected() == 1, err
+}
+
+func (s *ChallengesStore) ParticipantExists(ctx context.Context, tx pgx.Tx, challengeID, userID string) (bool, error) {
+	var exists bool
+	err := tx.QueryRow(ctx, `SELECT EXISTS (
+		SELECT 1 FROM challenge_participants WHERE challenge_id=$1 AND user_id=$2
+	)`, challengeID, userID).Scan(&exists)
+	return exists, err
+}
+
+func (s *ChallengesStore) ParticipantCountTx(ctx context.Context, tx pgx.Tx, challengeID string) (int, error) {
+	var n int
+	err := tx.QueryRow(ctx, `SELECT count(*) FROM challenge_participants WHERE challenge_id=$1`, challengeID).Scan(&n)
+	return n, err
 }
 
 func (s *ChallengesStore) ParticipantCount(ctx context.Context, challengeID string) (int, error) {
@@ -170,10 +188,17 @@ func (s *ChallengesStore) SetStatus(ctx context.Context, id, status string) erro
 	return err
 }
 
-// EligibleForSettle: thử thách end_date <= today và status='live' hoặc 'open'.
+func (s *ChallengesStore) SetStatusTx(ctx context.Context, tx pgx.Tx, id, status string) error {
+	_, err := tx.Exec(ctx, `UPDATE challenges SET status=$2 WHERE id=$1`, id, status)
+	return err
+}
+
+// EligibleForSettle: thử thách được admin trigger settling hoặc đã qua end_date.
 func (s *ChallengesStore) EligibleForSettle(ctx context.Context) ([]Challenge, error) {
 	rows, err := s.pool.Query(ctx, `SELECT `+challengeColumns+` FROM challenges
-		WHERE end_date < CURRENT_DATE AND status IN ('open','live') ORDER BY end_date ASC LIMIT 200`)
+		WHERE status = 'settling'
+		   OR (end_date < CURRENT_DATE AND status IN ('open','live'))
+		ORDER BY end_date ASC LIMIT 200`)
 	if err != nil {
 		return nil, err
 	}

@@ -38,5 +38,19 @@ func (h *Handler) Ledger(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": fiber.Map{"message": err.Error()}})
 	}
-	return c.JSON(fiber.Map{"items": items})
+	out := make([]fiber.Map, 0, len(items))
+	for _, item := range items {
+		out = append(out, fiber.Map{
+			"id":              item.ID,
+			"user_id":         item.UserID,
+			"delta_points":    item.DeltaPoints,
+			"reason":          item.Reason,
+			"reference_type":  item.ReferenceType,
+			"reference_id":    item.ReferenceID,
+			"idempotency_key": item.IdempotencyKey,
+			"note":            item.Note,
+			"created_at":      item.CreatedAt,
+		})
+	}
+	return c.JSON(fiber.Map{"items": out})
 }

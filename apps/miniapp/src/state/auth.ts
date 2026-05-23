@@ -1,16 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-interface User {
-  id: string;
-  zalo_id: string;
-  handle: string | null;
-  display_name: string;
-  avatar_url: string | null;
-  daily_goal: number;
-  locale: 'vi' | 'en';
-  balance_points: number;
-}
+import type { User } from '@/services/endpoints';
 
 interface AuthState {
   accessToken: string | null;

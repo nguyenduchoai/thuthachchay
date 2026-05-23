@@ -1,17 +1,18 @@
-# Bước Vàng — Trạng thái scaffold hiện tại
+# Bước Vàng — Trạng thái MVP hiện tại
 
-> Cập nhật: 2026-05-22 · sau lượt scaffold mở rộng của Claude (Cowork)
+> Cập nhật: 2026-05-23 · lượt mở rộng Admin + migration templ + Tailwind (Claude Cowork)
 
 ## Kết quả số liệu
 
 | Hạng mục | Số file | LOC |
 |---|---|---|
 | BE Go (services/api) | 48 | ~3,800 |
-| Admin Go (apps/admin) | 3 | ~600 |
+| Admin Go (apps/admin, viết tay) | 15 | ~1,950 |
+| Admin Go (apps/admin, `*_templ.go` sinh) | 7 | ~4,790 |
 | Mini App TS (apps/miniapp) | 34 | ~1,330 |
 | Migrations SQL (goose) | 2 | — |
 | Tests (Go + TS) | 5 | — |
-| **Tổng** | **92** | **~5,700** |
+| **Tổng (viết tay)** | **104** | **~7,080** |
 
 ## Đã làm xong
 
@@ -36,11 +37,32 @@
 - `migrations/20260522120100_seed_dev.sql` — 5 user, 3 challenge, 4 voucher (300 codes), 5,000đ welcome.
 
 ### Admin `apps/admin`
-- `internal/web/routes.go` — auth basic, list users/challenges/fraud-queue/vouchers, cancel challenge, adjust points, CSV export users + ledger. HTML render server-side với HTMX-ready markup.
+
+**Stack đúng spec §6**: `templ` + HTMX + **Tailwind CSS** (qua CDN, custom theme color `brand: #ff9500`).
+
+**Tách module theo domain** — mỗi cặp `xxx.go` (handler slim: fetch data + render) + `xxx.templ` (UI components, được templ generate thành `xxx_templ.go`):
+
+- `routes.go` (133 LOC) — wiring 27 endpoint + Basic Auth + mountStub.
+- `layout.go` + `layout.templ` — `@page(c, title)` wrapper với HTMX + Tailwind CDN + Tailwind theme config + `data-confirm` JS listener global; `@nav(c)` highlight active section + lang toggle vi/en; `@pager`, `@kpiTile`, `@kpiTileSub`, `@pillC`, `@statusPillC`; helpers `langOf/t/setLang/paginate/statusPillClass/stockPillClass/formatInt/decodeB64/isUUID/prettyJSON/shortID`.
+- `users.go` + `users.templ` — `@usersListPage` (filter q+status+pagination) · `@userDetailPage` (info + form update + ledger 30 mới nhất) · `@userRowTR` · handlers cho list/detail/update/suspend/activate/adjust. **Endpoint mới spec §6**: `POST /users/:id/update` gộp status+fraud_score+note vào 1 form.
+- `challenges.go` + `challenges.templ` — `@challengesListPage` (filter status+pagination) · **`@challengeDetailPage` mới** với **settle preview** (winners = đủ daily_target mọi ngày · host 10% nếu public · per-winner) · `@participantTR` · handlers list/detail/cancel/trigger.
+- `vouchers.go` + `vouchers.templ` — `@vouchersListPage`+pagination · **`@voucherDetailPage` mới** (KPI grid + edit form + add-codes form + codes inventory 100 gần nhất + redemptions 100 gần nhất) · `@voucherUploadPage` · `@voucherEditForm` · `@voucherAddCodesForm` · handlers list/detail/upload/update/codes/disable. **Endpoints mới spec §6**: `POST /vouchers/:id/update`, `POST /vouchers/:id/codes`, `POST /vouchers/:id/disable`.
+- `fraud.go` + `fraud.templ` — `@fraudListPage` + `@fraudRowTR` + decide approve/reject + pagination.
+- `audit.go` + `audit.templ` — **mới**: `@auditListPage` với filter admin/action/target/from/to + pagination + `@auditRowTR` auto-link target UUID sang user/challenge/voucher.
+- `reports.go` + `reports.templ` — `@dashboardPage` (thêm KPI fraud queue + 5 nav button) · **`@dsoPage` mới** (KPI: issued/burned/net/redemptions/active/new/ARPU + top brands by burn + daily breakdown 60 ngày) · CSV exports users/ledger/challenges (CSV không qua templ, viết trực tiếp).
+
+**Hạ tầng templ + tooling**:
+- `//go:generate go run github.com/a-h/templ/cmd/templ@latest generate` trong `layout.go`.
+- `make templ` target dùng `go run github.com/a-h/templ/cmd/templ@latest` (không yêu cầu cài CLI riêng).
+- `make build-go` và `make admin` đều depend `templ` → tự động regen trước khi build/run.
+- File `*_templ.go` được check-in (per templ convention) để CI build mà không cần chạy generate.
+
 - Direct pgx (không phụ thuộc package `services/api`).
+- i18n vi/en qua cookie `lang` (rule CLAUDE.md #10), toggle ở góc phải header — mọi text user-facing đều dùng `t(c, vi, en)`.
+- Mọi mutation ghi `audit_log` với `diff` jsonb (đã đủ 10 action: user.suspend/activate/update, points.adjust, challenge.cancel/settle_trigger, fraud.decide, voucher.upload/update/codes_add/disable).
 
 ### Mini App `apps/miniapp`
-- `services/endpoints.ts` — **24 endpoint** typed wrappers (auth, user, steps, challenges, wallet, voucher, referral, strava).
+- `services/endpoints.ts` — dùng `@buocvang/api-client` fetch SDK thật cho auth, user, steps, challenges, wallet, voucher, referral, strava.
 - `state/user.ts` — Zustand store user info, `refresh()` gọi `/me`.
 - `pages/auth/SignIn.tsx` — gọi `zmp-sdk/apis getAccessToken`, fallback prompt dev mode.
 - `pages/Home.tsx` — fetch song song today total + open challenges + leaderboard, render progress bar + cards.
@@ -50,28 +72,24 @@
 - 6 pages khác (Welcome, Splash, onboarding How/Source/Goal/Username/Strava/Notify) đã có UI thật từ scaffold trước.
 
 ### Tests
-- `services/api/internal/httpx/routes_test.go` — healthz/version/501-not-implemented
+- `services/api/internal/httpx/middleware_test.go` — CORS allowlist middleware
 - `services/api/internal/steps/counter_test.go` — Merge function
 - `services/api/internal/antifraud/antifraud_test.go` — CadenceFlag
-- `apps/admin/internal/web/routes_test.go` — index + healthz
+- `apps/admin/internal/web/routes_test.go` — index render (verify Tailwind CDN + brand + htmx loaded) + healthz + /lang redirect+cookie + /admin/* no-database fallback + isUUID + prettyJSON + formatInt + stockPillClass + shortID (9 tests)
 - `apps/miniapp/src/sensors/stepCounter.test.ts` — peak detection
 
-## Còn lại (chủ động không làm trong lượt này)
+## Còn lại trước VPS
 
-| Pages chưa có UI thật (vẫn `PagePlaceholder`) | Lý do |
-|---|---|
-| `Checkout.tsx` | Polling `/transactions/:id` chưa wire — endpoint backend chưa code |
-| `Create.tsx`, `CreateNew.tsx` | Form tạo challenge — ưu tiên thấp cho MVP người chơi |
-| `Discover.tsx` | Tương tự Home, có thể tái dùng list logic |
-| `Profile.tsx`, `ProfileSettings.tsx`, `ProfileEdit.tsx` | CRUD đơn giản, chỉ cần wire `PATCH /me` |
-| `onboarding/LeaderboardPreview.tsx` | Dùng `GET /v1/leaderboards/global` tương tự Home |
+Không còn màn runtime rỗng trong Mini App. Các màn player chính đã đi qua API thật bằng `@buocvang/api-client`.
 
 | Backend còn thiếu | Ghi chú |
 |---|---|
 | Upload avatar/cover S3/MinIO | `POST /v1/upload` chưa wire — cần SDK aws-sdk-go-v2 |
-| Worker Strava webhook async (asynq) | Hiện webhook chỉ trả 200; logic ingest activity → daily_steps cần async queue |
+| Queue bền vững cho Strava webhook | Hiện webhook đã sync activity → daily_steps bằng goroutine trong process; nếu chạy nhiều replica hoặc traffic cao nên chuyển Redis/asynq |
 | Notification batch (`requestSubscribeMessage`) | Chỉ có wrapper send; cần job nightly nhắc streak |
-| Admin OIDC (Google Workspace) | Hiện Basic Auth env — production cần thay |
+| Admin OIDC (Google Workspace) + IP allowlist | Hiện Basic Auth env — production cần thay (spec §6). Cần Google Workspace client_id/secret + middleware IP whitelist. |
+| Tailwind production build | Hiện qua **CDN** (script `cdn.tailwindcss.com` + custom theme inline). Hoạt động tốt nội bộ. Production khuyến nghị chuyển standalone CLI (binary download + compile sang static CSS) để tránh JS runtime cost. |
+| KYC review UI | Cột `kyc_status` chưa có trong schema — cần migration trước khi build UI. |
 | `go.work` workspace | Admin & API là 2 module riêng; nếu muốn share types có thể thêm |
 
 ## Chạy local

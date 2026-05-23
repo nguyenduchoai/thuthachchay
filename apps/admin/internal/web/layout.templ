@@ -1,0 +1,152 @@
+package web
+
+import (
+	"net/url"
+	"strconv"
+	"strings"
+
+	"github.com/gofiber/fiber/v2"
+)
+
+// page là layout gốc. Tailwind qua CDN + HTMX.
+templ page(c *fiber.Ctx, title string) {
+	<!DOCTYPE html>
+	<html lang={ langOf(c) }>
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ title } · Bước Vàng Admin</title>
+			<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+			<script>
+				tailwind.config = {
+					theme: {
+						extend: {
+							colors: { brand: '#ff9500' }
+						}
+					}
+				}
+			</script>
+			<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+			<script>
+				// Global confirm via data-confirm attribute.
+				document.addEventListener('click', function(e) {
+					const t = e.target.closest('[data-confirm]');
+					if (t && !confirm(t.dataset.confirm)) {
+						e.preventDefault();
+						e.stopPropagation();
+					}
+				});
+			</script>
+		</head>
+		<body class="bg-gray-50 text-gray-900 antialiased font-sans">
+			@nav(c)
+			<main class="max-w-7xl mx-auto px-6 py-6">
+				{ children... }
+			</main>
+		</body>
+	</html>
+}
+
+templ nav(c *fiber.Ctx) {
+	{{
+		otherLang := "en"
+		if langOf(c) == "en" {
+			otherLang = "vi"
+		}
+		back := url.QueryEscape(c.OriginalURL())
+		langURL := "/lang?to=" + otherLang + "&back=" + back
+	}}
+	<header class="bg-white border-b border-gray-200 px-6 py-3 flex flex-wrap gap-1 items-center text-sm">
+		@navLink(c, "/admin/reports/dashboard", "📊 "+t(c, "Dashboard", "Dashboard"), "/admin/reports")
+		@navLink(c, "/admin/users", t(c, "Người dùng", "Users"), "/admin/users")
+		@navLink(c, "/admin/challenges", t(c, "Thử thách", "Challenges"), "/admin/challenges")
+		@navLink(c, "/admin/fraud-queue", t(c, "Fraud", "Fraud"), "/admin/fraud-queue")
+		@navLink(c, "/admin/vouchers", t(c, "Voucher", "Vouchers"), "/admin/vouchers")
+		@navLink(c, "/admin/audit", t(c, "Audit", "Audit"), "/admin/audit")
+		<a href="/admin/vouchers/new" class="px-3 py-1.5 rounded text-gray-700 hover:bg-gray-100">+ Voucher</a>
+		<span class="flex-1"></span>
+		<a href="/admin/reports/csv/users" class="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded">CSV Users</a>
+		<a href="/admin/reports/csv/challenges" class="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded">CSV Challenges</a>
+		<a href="/admin/reports/csv/ledger" class="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded">CSV Ledger</a>
+		<a href="/admin/reports/dso" class="px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 rounded">DSO</a>
+		<a href={ templ.SafeURL(langURL) } class="ml-2 px-2 py-0.5 text-xs bg-gray-900 text-white rounded font-medium">{ strings.ToUpper(otherLang) }</a>
+	</header>
+}
+
+templ navLink(c *fiber.Ctx, href, label, activePrefix string) {
+	if activeIf(c, activePrefix) != "" {
+		<a href={ templ.SafeURL(href) } class="px-3 py-1.5 rounded bg-brand text-white font-semibold">{ label }</a>
+	} else {
+		<a href={ templ.SafeURL(href) } class="px-3 py-1.5 rounded text-gray-700 hover:bg-gray-100">{ label }</a>
+	}
+}
+
+// pager render điều hướng trang.
+templ pager(c *fiber.Ctx, total, perPage, pageN int) {
+	if total == 0 {
+		<p class="text-gray-500 mt-4">{ t(c, "Không có kết quả.", "No results.") }</p>
+	} else {
+		{{
+			last := (total + perPage - 1) / perPage
+			if last < 1 {
+				last = 1
+			}
+			q := url.Values{}
+			c.Request().URI().QueryArgs().VisitAll(func(k, v []byte) {
+				if string(k) != "page" {
+					q.Add(string(k), string(v))
+				}
+			})
+		}}
+		<div class="mt-4 flex gap-2 items-center text-sm">
+			if pageN > 1 {
+				{{ q.Set("page", strconv.Itoa(pageN-1)); prev := c.Path() + "?" + q.Encode() }}
+				<a class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 text-gray-700" href={ templ.SafeURL(prev) }>‹ { t(c, "Trước", "Prev") }</a>
+			}
+			<span class="text-gray-500">
+				{ t(c, "Trang", "Page") } { pageN } / { last } · { total } { t(c, "kết quả", "results") }
+			</span>
+			if pageN < last {
+				{{ q.Set("page", strconv.Itoa(pageN+1)); next := c.Path() + "?" + q.Encode() }}
+				<a class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-100 text-gray-700" href={ templ.SafeURL(next) }>{ t(c, "Sau", "Next") } ›</a>
+			}
+		</div>
+	}
+}
+
+// pillC — generic pill với class tự chọn.
+templ pillC(label, class string) {
+	<span class={ "inline-block px-2 py-0.5 rounded-full text-xs font-semibold " + class }>{ label }</span>
+}
+
+// statusPillC — auto màu theo status.
+templ statusPillC(s string) {
+	@pillC(s, statusPillClass(s))
+}
+
+// kpiTile — KPI card.
+templ kpiTile(label, value string) {
+	<div class="bg-white rounded-xl p-4 shadow-sm">
+		<div class="text-xs uppercase tracking-wider text-gray-500 font-medium">{ label }</div>
+		<div class="text-2xl font-bold mt-1">{ value }</div>
+	</div>
+}
+
+templ kpiTileSub(label, value, sub string) {
+	<div class="bg-white rounded-xl p-4 shadow-sm">
+		<div class="text-xs uppercase tracking-wider text-gray-500 font-medium">{ label }</div>
+		<div class="text-2xl font-bold mt-1">{ value }</div>
+		<div class="text-xs text-gray-500 mt-1">{ sub }</div>
+	</div>
+}
+
+// indexPage cho / route.
+templ indexPage(c *fiber.Ctx) {
+	@page(c, "Home") {
+		<h1 class="text-2xl font-bold mb-3">Bước Vàng — Admin</h1>
+		<p class="text-gray-600">
+			{ t(c, "Chào mừng. Chọn mục ở header.", "Welcome. Use the header nav.") }
+			<a href="/admin/reports/dashboard" class="text-brand font-medium hover:underline">→ { t(c, "Vào dashboard", "Go to dashboard") }</a>
+		</p>
+	}
+}

@@ -13,9 +13,9 @@ type Handler struct{ svc Service }
 func NewHandler(svc Service) *Handler { return &Handler{svc: svc} }
 
 type ingestReqDTO struct {
-	Day    string        `json:"day"` // YYYY-MM-DD
-	Source string        `json:"source"`
-	Chunks []chunkDTO    `json:"chunks"`
+	Day    string            `json:"day"` // YYYY-MM-DD
+	Source string            `json:"source"`
+	Chunks []chunkDTO        `json:"chunks"`
 	Device map[string]string `json:"device"`
 }
 
@@ -85,5 +85,15 @@ func (h *Handler) History(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": fiber.Map{"message": err.Error()}})
 	}
-	return c.JSON(fiber.Map{"items": list})
+	out := make([]fiber.Map, 0, len(list))
+	for _, item := range list {
+		out = append(out, fiber.Map{
+			"user_id": item.UserID,
+			"day":     item.Day.Format("2006-01-02"),
+			"steps":   item.Steps,
+			"source":  item.Source,
+			"flagged": item.Flagged,
+		})
+	}
+	return c.JSON(fiber.Map{"items": out})
 }

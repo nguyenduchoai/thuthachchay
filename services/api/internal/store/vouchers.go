@@ -86,8 +86,12 @@ func (s *VouchersStore) AllocateCode(ctx context.Context, tx pgx.Tx, voucherID, 
 		}
 		return "", err
 	}
-	if _, err := tx.Exec(ctx, `UPDATE vouchers SET stock = stock - 1 WHERE id=$1 AND stock > 0`, voucherID); err != nil {
+	tag, err := tx.Exec(ctx, `UPDATE vouchers SET stock = stock - 1 WHERE id=$1 AND stock > 0`, voucherID)
+	if err != nil {
 		return "", err
+	}
+	if tag.RowsAffected() != 1 {
+		return "", ErrOutOfStock
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO voucher_redemptions (user_id, voucher_id, code) VALUES ($1, $2, $3)`,
 		userID, voucherID, code); err != nil {

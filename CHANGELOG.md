@@ -13,7 +13,7 @@ Format theo [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) và [SemVer
 - sqlc.yaml + queries cho users, steps, challenges, ledger, vouchers, leaderboards.
 - OpenAPI 3.1 với ≥30 endpoint MVP.
 - HTTPx middleware: recover, requestid, cors, access log + AppError JSON envelope.
-- Unit test: `steps.Merge`, `antifraud.CadenceFlag`, healthz/version/501 routing, admin index/healthz.
+- Unit test: `steps.Merge`, `antifraud.CadenceFlag`, healthz/version/middleware routing, admin index/healthz.
 
 ### Added — Milestone 2 (miniapp)
 - Vite + React 18 + TS strict + react-router + i18next vi/en + zustand.
@@ -21,7 +21,7 @@ Format theo [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) và [SemVer
 - Auth store persist + axios interceptor JWT refresh inflight-dedup.
 - StepCounter peak-detection (4 test pass).
 - BottomNav 5 tab, style Liquid Glass theo `mockup.html`.
-- `@buocvang/api-client` placeholder types.
+- `@buocvang/api-client` typed client package.
 - Vite test exclude `._*` (macOS metadata exFAT).
 
 ### Added — Milestone 3 (infra + ops)

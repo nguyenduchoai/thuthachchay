@@ -1,55 +1,114 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
   title: Bước Vàng Public API
   version: 0.1.0
-  description: |
-    Public API cho Zalo Mini App "Bước Vàng".
-    Auth: Bearer JWT (RS256). Required headers: `Authorization`, `X-Client`.
-    Mutation endpoints chấp nhận `X-Idempotency-Key` (UUID v4).
+  description: Public API for the Bước Vàng Zalo Mini App.
   license:
     name: Proprietary
+    url: https://buocvang.vn/legal
+
 servers:
   - url: https://api.buocvang.vn
     description: Production
-  - url: http://localhost:8080
-    description: Local
 
 security:
   - bearerAuth: []
 
 tags:
+  - name: meta
+    description: Health and version endpoints.
   - name: auth
+    description: Zalo login and token lifecycle.
   - name: profile
+    description: Current user profile and onboarding.
   - name: steps
+    description: Step ingest and history.
   - name: challenges
+    description: Challenge discovery, creation, join, and leaderboard.
   - name: leaderboards
+    description: Global leaderboard.
   - name: wallet
+    description: Point balance and ledger.
   - name: vouchers
-  - name: strava
+    description: Voucher catalog and redemption.
   - name: referral
+    description: Referral tracking and stats.
+  - name: strava
+    description: Strava OAuth and webhook endpoints.
 
 paths:
-  /healthz: { get: { tags: [meta], security: [], operationId: getHealthz, responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/HealthResponse' }}}}}}}
-  /readyz:  { get: { tags: [meta], security: [], operationId: getReadyz,  responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/HealthResponse' }}}}}}}
-  /version: { get: { tags: [meta], security: [], operationId: getVersion, responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/VersionResponse' }}}}}}}
+  /healthz:
+    get:
+      tags: [meta]
+      summary: Check process health.
+      security: []
+      operationId: getHealthz
+      responses:
+        "200":
+          description: Service is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /readyz:
+    get:
+      tags: [meta]
+      summary: Check database and Redis readiness.
+      security: []
+      operationId: getReadyz
+      responses:
+        "200":
+          description: Dependencies are ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /version:
+    get:
+      tags: [meta]
+      summary: Get API version.
+      security: []
+      operationId: getVersion
+      responses:
+        "200":
+          description: API version.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VersionResponse"
 
   /v1/auth/zalo:
     post:
       tags: [auth]
+      summary: Login or create a user with a Zalo access token.
       security: []
-      operationId: zaloLogin
+      operationId: loginZalo
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ZaloLoginRequest' }
+            schema:
+              $ref: "#/components/schemas/ZaloLoginRequest"
       responses:
-        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResponse' }}}}
-        '401': { $ref: '#/components/responses/Unauthorized' }
+        "200":
+          description: Login successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /v1/auth/refresh:
     post:
       tags: [auth]
+      summary: Rotate refresh token and issue a new access token.
       security: []
       operationId: refreshToken
       requestBody:
@@ -57,83 +116,107 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [refresh_token]
-              properties: { refresh_token: { type: string }}
+              $ref: "#/components/schemas/RefreshRequest"
       responses:
-        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResponse' }}}}
-        '401': { $ref: '#/components/responses/Unauthorized' }
+        "200":
+          description: Token refresh successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthTokens"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /v1/auth/sign-out:
     post:
       tags: [auth]
+      summary: Revoke a refresh token.
+      security: []
       operationId: signOut
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
       responses:
-        '204': { description: ok }
+        "204":
+          description: Token revoked if present.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /v1/username/check:
+    post:
+      tags: [profile]
+      summary: Check whether a handle is available.
+      security: []
+      operationId: checkUsername
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [handle]
+              properties:
+                handle:
+                  type: string
+                  minLength: 3
+                  maxLength: 20
+      responses:
+        "200":
+          description: Availability result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsernameCheckResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/me:
     get:
       tags: [profile]
+      summary: Get the current user profile.
       operationId: getMe
       responses:
-        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/User' }}}}
+        "200":
+          description: Current user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
     patch:
       tags: [profile]
+      summary: Update the current user profile.
       operationId: updateMe
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/UpdateMeRequest' }
+            schema:
+              $ref: "#/components/schemas/UpdateMeRequest"
       responses:
-        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/User' }}}}
-
-  /v1/me/today:
-    get:
-      tags: [profile]
-      operationId: getMyToday
-      responses:
-        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/DailySteps' }}}}
-
-  /v1/me/history:
-    get:
-      tags: [profile]
-      operationId: getMyHistory
-      parameters:
-        - { in: query, name: from, schema: { type: string, format: date }}
-        - { in: query, name: to,   schema: { type: string, format: date }}
-      responses:
-        '200': { description: ok, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/DailySteps' }}}}}
-
-  /v1/me/referral:
-    get:
-      tags: [referral]
-      operationId: getMyReferral
-      responses:
-        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Referral' }}}}
-
-  /v1/me/host-stats:
-    get:
-      tags: [profile]
-      operationId: getMyHostStats
-      responses:
-        '200': { description: ok }
-
-  /v1/me/notifications:
-    patch:
-      tags: [profile]
-      operationId: updateMyNotifications
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/NotificationPrefs' }
-      responses:
-        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationPrefs' }}}}
+        "200":
+          description: Updated user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /v1/me/attribution:
     post:
       tags: [profile]
+      summary: Store onboarding attribution for the current user.
       operationId: setMyAttribution
       requestBody:
         required: true
@@ -143,152 +226,374 @@ paths:
               type: object
               required: [source]
               properties:
-                source: { type: string, enum: [friend, social, ads, search, other] }
+                source:
+                  type: string
       responses:
-        '204': { description: ok }
+        "200":
+          description: Attribution stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OKResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
-  /v1/username/check:
+  /v1/me/referral:
+    get:
+      tags: [referral]
+      summary: Get referral code and stats for the current user.
+      operationId: getMyReferral
+      responses:
+        "200":
+          description: Referral stats.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/steps/today:
+    get:
+      tags: [steps]
+      summary: Get today's accepted step total.
+      operationId: getStepsToday
+      responses:
+        "200":
+          description: Today's total.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TodayStepsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/steps/ingest:
     post:
-      tags: [profile]
-      operationId: checkUsername
+      tags: [steps]
+      summary: Ingest step chunks from ZMP or Strava.
+      operationId: ingestSteps
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [handle]
-              properties: { handle: { type: string, minLength: 3, maxLength: 24 }}
+              $ref: "#/components/schemas/StepsIngestRequest"
       responses:
-        '200':
-          description: ok
+        "200":
+          description: Ingest result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StepsIngestResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/steps/me:
+    get:
+      tags: [steps]
+      summary: List current user's daily step history.
+      operationId: getStepsHistory
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Step history.
           content:
             application/json:
               schema:
                 type: object
-                properties: { available: { type: boolean }}
-
-  /v1/steps/ingest:
-    post:
-      tags: [steps]
-      operationId: ingestSteps
-      parameters:
-        - { in: header, name: X-Idempotency-Key, required: true, schema: { type: string, format: uuid }}
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/StepsIngestRequest' }
-      responses:
-        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/DailySteps' }}}}
-        '409': { $ref: '#/components/responses/Conflict' }
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DailySteps"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /v1/challenges:
     get:
       tags: [challenges]
+      summary: List challenges.
       operationId: listChallenges
       parameters:
-        - { in: query, name: status, schema: { type: string, enum: [open, live, settled, cancelled] }}
-        - { in: query, name: phase,  schema: { type: string, enum: [upcoming, live, wrapping] }}
-        - { in: query, name: limit,  schema: { type: integer, default: 20, maximum: 100 }}
-        - { in: query, name: offset, schema: { type: integer, default: 0 }}
+        - name: phase
+          in: query
+          schema:
+            type: string
+            enum: [upcoming, live, wrapping]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
       responses:
-        '200': { description: ok, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Challenge' }}}}}
+        "200":
+          description: Challenge list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Challenge"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
       tags: [challenges]
+      summary: Create a challenge.
       operationId: createChallenge
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/CreateChallengeRequest' }
+            schema:
+              $ref: "#/components/schemas/CreateChallengeRequest"
       responses:
-        '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/Challenge' }}}}
+        "201":
+          description: Created challenge.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Challenge"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          $ref: "#/components/responses/PaymentRequired"
 
   /v1/challenges/{id}:
     get:
       tags: [challenges]
+      summary: Get a challenge.
       operationId: getChallenge
       parameters:
-        - { in: path, name: id, required: true, schema: { type: string, format: uuid }}
+        - $ref: "#/components/parameters/ID"
       responses:
-        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Challenge' }}}}
-        '404': { $ref: '#/components/responses/NotFound' }
+        "200":
+          description: Challenge detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Challenge"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /v1/challenges/{id}/join:
     post:
       tags: [challenges]
+      summary: Join a challenge.
       operationId: joinChallenge
       parameters:
-        - { in: path,   name: id, required: true, schema: { type: string, format: uuid }}
-        - { in: header, name: X-Idempotency-Key, required: true, schema: { type: string, format: uuid }}
+        - $ref: "#/components/parameters/ID"
+        - $ref: "#/components/parameters/IdempotencyKey"
       responses:
-        '200': { description: ok }
-        '409': { $ref: '#/components/responses/Conflict' }
+        "200":
+          description: Join accepted or already joined.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OKResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          $ref: "#/components/responses/PaymentRequired"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/challenges/{id}/leaderboard:
+    get:
+      tags: [challenges]
+      summary: Get a challenge leaderboard.
+      operationId: getChallengeLeaderboard
+      parameters:
+        - $ref: "#/components/parameters/ID"
+      responses:
+        "200":
+          description: Challenge leaderboard.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ChallengeLeaderboardRow"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /v1/leaderboards/global:
     get:
       tags: [leaderboards]
+      summary: Get the global leaderboard.
       operationId: getGlobalLeaderboard
-      parameters:
-        - { in: query, name: limit, schema: { type: integer, default: 20, maximum: 100 }}
       responses:
-        '200': { description: ok, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/LeaderboardRow' }}}}}
-
-  /v1/leaderboards/challenge/{id}:
-    get:
-      tags: [leaderboards]
-      operationId: getChallengeLeaderboard
-      parameters:
-        - { in: path,  name: id, required: true, schema: { type: string, format: uuid }}
-        - { in: query, name: limit, schema: { type: integer, default: 50, maximum: 200 }}
-      responses:
-        '200': { description: ok, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/LeaderboardRow' }}}}}
+        "200":
+          description: Global leaderboard.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/GlobalLeaderboardRow"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /v1/wallet:
     get:
       tags: [wallet]
+      summary: Get current point balance.
       operationId: getWallet
       responses:
-        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Wallet' }}}}
+        "200":
+          description: Wallet balance.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletBalance"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/wallet/ledger:
+    get:
+      tags: [wallet]
+      summary: List current user's ledger entries.
+      operationId: getWalletLedger
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 30
+            maximum: 100
+      responses:
+        "200":
+          description: Ledger entries.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/LedgerEntry"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /v1/vouchers:
     get:
       tags: [vouchers]
+      summary: List available vouchers.
       operationId: listVouchers
       responses:
-        '200': { description: ok, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/VoucherProduct' }}}}}
+        "200":
+          description: Voucher catalog.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Voucher"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /v1/vouchers/mine:
     get:
       tags: [vouchers]
+      summary: List current user's voucher redemptions.
       operationId: listMyVouchers
       responses:
-        '200': { description: ok, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Redemption' }}}}}
+        "200":
+          description: My vouchers.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/VoucherRedemption"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /v1/vouchers/{id}/redeem:
     post:
       tags: [vouchers]
+      summary: Redeem a voucher.
       operationId: redeemVoucher
       parameters:
-        - { in: path,   name: id, required: true, schema: { type: string, format: uuid }}
-        - { in: header, name: X-Idempotency-Key, required: true, schema: { type: string, format: uuid }}
+        - $ref: "#/components/parameters/ID"
+        - $ref: "#/components/parameters/IdempotencyKey"
       responses:
-        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Redemption' }}}}
-        '409': { $ref: '#/components/responses/Conflict' }
-
-  /v1/transactions/{id}:
-    get:
-      tags: [wallet]
-      operationId: getTransaction
-      parameters:
-        - { in: path, name: id, required: true, schema: { type: string, format: uuid }}
-      responses:
-        '200': { description: ok }
+        "200":
+          description: Allocated voucher code.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedeemVoucherResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "402":
+          $ref: "#/components/responses/PaymentRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "410":
+          description: Voucher expired or out of stock.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /v1/referrals/track:
     post:
       tags: [referral]
+      summary: Attach the current user to an inviter code.
       operationId: trackReferral
       requestBody:
         required: true
@@ -297,28 +602,55 @@ paths:
             schema:
               type: object
               required: [code]
-              properties: { code: { type: string }}
+              properties:
+                code:
+                  type: string
       responses:
-        '204': { description: ok }
-
-  /v1/strava/oauth/url:
-    get:
-      tags: [strava]
-      operationId: getStravaOAuthURL
-      responses:
-        '200':
-          description: ok
+        "200":
+          description: Referral tracked.
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  url: { type: string, format: uri }
-                  state: { type: string }
+                  ok:
+                    type: boolean
+                  inviter:
+                    type: string
+                    format: uuid
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/strava/oauth/url:
+    get:
+      tags: [strava]
+      summary: Create a Strava OAuth URL and state.
+      operationId: getStravaOAuthURL
+      responses:
+        "200":
+          description: Strava OAuth URL.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, state]
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                  state:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /v1/strava/oauth/callback:
     post:
       tags: [strava]
+      summary: Exchange a Strava authorization code.
       operationId: stravaOAuthCallback
       requestBody:
         required: true
@@ -328,55 +660,68 @@ paths:
               type: object
               required: [code, state]
               properties:
-                code:  { type: string }
-                state: { type: string }
+                code:
+                  type: string
+                state:
+                  type: string
       responses:
-        '200': { description: ok }
+        "200":
+          description: OAuth token stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OKResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /v1/strava/webhook:
     get:
       tags: [strava]
+      summary: Verify a Strava webhook subscription.
       security: []
       operationId: stravaWebhookVerify
       parameters:
-        - { in: query, name: 'hub.mode',         schema: { type: string }}
-        - { in: query, name: 'hub.verify_token', schema: { type: string }}
-        - { in: query, name: 'hub.challenge',    schema: { type: string }}
+        - name: hub.mode
+          in: query
+          schema:
+            type: string
+        - name: hub.verify_token
+          in: query
+          schema:
+            type: string
+        - name: hub.challenge
+          in: query
+          schema:
+            type: string
       responses:
-        '200': { description: ok }
+        "200":
+          description: Webhook challenge.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hub.challenge:
+                    type: string
+        "403":
+          $ref: "#/components/responses/Forbidden"
     post:
       tags: [strava]
+      summary: Receive a Strava webhook event.
       security: []
       operationId: stravaWebhookEvent
       requestBody:
         required: true
         content:
-          application/json: { schema: { type: object, additionalProperties: true }}
-      responses:
-        '200': { description: ok }
-
-  /v1/upload:
-    post:
-      tags: [profile]
-      operationId: uploadFile
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
+          application/json:
             schema:
               type: object
-              required: [file, kind]
-              properties:
-                file: { type: string, format: binary }
-                kind: { type: string, enum: [avatar, cover] }
+              additionalProperties: true
       responses:
-        '200':
-          description: ok
-          content:
-            application/json:
-              schema:
-                type: object
-                properties: { url: { type: string, format: uri }}
+        "200":
+          description: Event accepted.
 
 components:
   securitySchemes:
@@ -385,16 +730,70 @@ components:
       scheme: bearer
       bearerFormat: JWT
 
+  parameters:
+    ID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: X-Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+
   responses:
+    BadRequest:
+      description: Bad request.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
     Unauthorized:
-      description: unauthorized
-      content: { application/json: { schema: { $ref: '#/components/schemas/Error' }}}
+      description: Missing or invalid credentials.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Authenticated user is not allowed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    PaymentRequired:
+      description: User does not have enough points.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
     NotFound:
-      description: not found
-      content: { application/json: { schema: { $ref: '#/components/schemas/Error' }}}
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
     Conflict:
-      description: conflict
-      content: { application/json: { schema: { $ref: '#/components/schemas/Error' }}}
+      description: Conflict.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ServiceUnavailable:
+      description: Dependency is not ready.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    InternalError:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
 
   schemas:
     Error:
@@ -403,166 +802,430 @@ components:
         error:
           type: object
           properties:
-            code:    { type: string }
-            message: { type: string }
-        request_id: { type: string }
+            code:
+              type: string
+            message:
+              type: string
+        request_id:
+          type: string
+
+    OKResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
 
     HealthResponse:
       type: object
-      properties: { status: { type: string, enum: [ok, degraded] }}
+      required: [status]
+      properties:
+        status:
+          type: string
 
     VersionResponse:
       type: object
+      required: [service, version]
       properties:
-        service: { type: string }
-        version: { type: string }
-        commit:  { type: string }
+        service:
+          type: string
+        version:
+          type: string
 
     ZaloLoginRequest:
       type: object
-      required: [access_token]
+      required: [zalo_access_token]
       properties:
-        access_token: { type: string, description: 'ZMP getAccessToken()' }
+        zalo_access_token:
+          type: string
+        locale:
+          type: string
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    AuthTokens:
+      type: object
+      required: [access_token, refresh_token, expires_in]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
 
     AuthResponse:
-      type: object
-      properties:
-        access_token:  { type: string }
-        refresh_token: { type: string }
-        expires_in:    { type: integer, description: 'access TTL giây' }
-        user:          { $ref: '#/components/schemas/User' }
+      allOf:
+        - $ref: "#/components/schemas/AuthTokens"
+        - type: object
+          required: [user]
+          properties:
+            user:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                  format: uuid
 
     User:
       type: object
-      required: [id, zalo_id]
+      required: [id, zalo_id, daily_goal, locale, status, created_at]
       properties:
-        id:           { type: string, format: uuid }
-        zalo_id:      { type: string }
-        handle:       { type: string, nullable: true }
-        display_name: { type: string }
-        avatar_url:   { type: string, format: uri, nullable: true }
-        daily_goal:   { type: integer }
-        locale:       { type: string, enum: [vi, en] }
-        balance_points: { type: integer }
-        referral_code:  { type: string, nullable: true }
+        id:
+          type: string
+          format: uuid
+        zalo_id:
+          type: string
+        handle:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        display_name:
+          type: string
+          nullable: true
+        avatar_url:
+          type: string
+          nullable: true
+        daily_goal:
+          type: integer
+        locale:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended, banned]
+        created_at:
+          type: string
+          format: date-time
 
     UpdateMeRequest:
       type: object
       properties:
-        handle:       { type: string }
-        display_name: { type: string }
-        avatar_url:   { type: string, format: uri }
-        daily_goal:   { type: integer }
-        locale:       { type: string, enum: [vi, en] }
+        handle:
+          type: string
+        display_name:
+          type: string
+        avatar_url:
+          type: string
+        daily_goal:
+          type: integer
+          minimum: 1000
+          maximum: 50000
+        locale:
+          type: string
+        email:
+          type: string
+
+    UsernameCheckResponse:
+      type: object
+      required: [available]
+      properties:
+        available:
+          type: boolean
+        handle:
+          type: string
+        reason:
+          type: string
+
+    TodayStepsResponse:
+      type: object
+      required: [day_total]
+      properties:
+        day_total:
+          type: integer
 
     DailySteps:
       type: object
+      required: [day, steps, source, flagged]
       properties:
-        day:           { type: string, format: date }
-        zmp_steps:     { type: integer }
-        strava_steps:  { type: integer }
-        merged_steps:  { type: integer }
-        flagged:       { type: boolean }
+        user_id:
+          type: string
+          format: uuid
+        day:
+          type: string
+          format: date
+        steps:
+          type: integer
+        source:
+          type: string
+          enum: [zmp, strava, merged]
+        flagged:
+          type: boolean
+
+    StepChunk:
+      type: object
+      required: [start, end, steps, client_nonce]
+      properties:
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+        steps:
+          type: integer
+          minimum: 0
+        client_nonce:
+          type: string
+        sensor_hash:
+          type: string
+        cadence_avg_ms:
+          type: integer
 
     StepsIngestRequest:
       type: object
-      required: [day, source, steps, client_nonce]
+      required: [source, chunks]
       properties:
-        day:          { type: string, format: date }
-        source:       { type: string, enum: [zmp, strava] }
-        steps:        { type: integer, minimum: 0 }
-        client_nonce: { type: string }
-        sensor_hash:  { type: string, nullable: true }
+        day:
+          type: string
+          format: date
+        source:
+          type: string
+          enum: [zmp, strava]
+        chunks:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/StepChunk"
+        device:
+          type: object
+          additionalProperties:
+            type: string
+
+    StepsIngestResponse:
+      type: object
+      required: [accepted, rejected, day_total, flagged, score_delta, flag_reasons]
+      properties:
+        accepted:
+          type: integer
+        rejected:
+          type: integer
+        day_total:
+          type: integer
+        flagged:
+          type: boolean
+        score_delta:
+          type: integer
+        flag_reasons:
+          type: array
+          items:
+            type: string
 
     Challenge:
       type: object
-      required: [id, name, daily_steps_target, start_date, end_date, status]
+      required: [id, visibility, name, daily_steps_target, duration_days, entry_points, prize_pool, start_date, end_date, status]
       properties:
-        id:                  { type: string, format: uuid }
-        host_id:             { type: string, format: uuid, nullable: true }
-        visibility:          { type: string, enum: [public, private] }
-        name:                { type: string }
-        description:         { type: string }
-        cover_url:           { type: string, format: uri, nullable: true }
-        daily_steps_target:  { type: integer }
-        duration_days:       { type: integer }
-        entry_points:        { type: integer }
-        prize_pool:          { type: integer }
-        start_date:          { type: string, format: date }
-        end_date:            { type: string, format: date }
-        status:              { type: string, enum: [draft, open, live, settled, cancelled] }
+        id:
+          type: string
+          format: uuid
+        host_id:
+          type: string
+          format: uuid
+          nullable: true
+        visibility:
+          type: string
+          enum: [private, public]
+        name:
+          type: string
+        description:
+          type: string
+        cover_url:
+          type: string
+          nullable: true
+        daily_steps_target:
+          type: integer
+        duration_days:
+          type: integer
+        entry_points:
+          type: integer
+        prize_pool:
+          type: integer
+        max_participants:
+          type: integer
+          nullable: true
+        start_date:
+          type: string
+          format: date-time
+        end_date:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [draft, open, live, settling, settled, cancelled]
+        participants:
+          type: integer
 
     CreateChallengeRequest:
       type: object
       required: [visibility, name, daily_steps_target, duration_days, start_date]
       properties:
-        visibility:          { type: string, enum: [public, private] }
-        name:                { type: string }
-        description:         { type: string }
-        cover_url:           { type: string, format: uri }
-        daily_steps_target:  { type: integer, minimum: 1000, maximum: 50000 }
-        duration_days:       { type: integer, minimum: 1, maximum: 90 }
-        entry_points:        { type: integer, minimum: 0 }
-        prize_pool:          { type: integer, minimum: 0 }
-        max_participants:    { type: integer, minimum: 1 }
-        start_date:          { type: string, format: date }
+        visibility:
+          type: string
+          enum: [private, public]
+        name:
+          type: string
+        description:
+          type: string
+        cover_url:
+          type: string
+        daily_steps_target:
+          type: integer
+          minimum: 1000
+          maximum: 50000
+        duration_days:
+          type: integer
+          minimum: 1
+          maximum: 90
+        start_date:
+          type: string
+          format: date-time
+        entry_points:
+          type: integer
+          minimum: 0
+        max_participants:
+          type: integer
+          minimum: 1
 
-    LeaderboardRow:
+    ChallengeLeaderboardRow:
       type: object
+      required: [rank, user_id, total_steps, state]
       properties:
-        rank:         { type: integer }
-        user_id:      { type: string, format: uuid }
-        handle:       { type: string, nullable: true }
-        display_name: { type: string }
-        avatar_url:   { type: string, format: uri, nullable: true }
-        total_steps:  { type: integer }
+        rank:
+          type: integer
+        user_id:
+          type: string
+          format: uuid
+        total_steps:
+          type: integer
+        state:
+          type: string
+          enum: [in, won, lost]
 
-    Wallet:
+    GlobalLeaderboardRow:
       type: object
+      required: [rank, user_id, steps]
       properties:
-        balance_points: { type: integer }
-        ledger:
-          type: array
-          items:
-            type: object
-            properties:
-              id:           { type: string, format: uuid }
-              delta_points: { type: integer }
-              reason:       { type: string }
-              created_at:   { type: string, format: date-time }
+        rank:
+          type: integer
+        user_id:
+          type: string
+          format: uuid
+        steps:
+          type: number
 
-    VoucherProduct:
+    WalletBalance:
       type: object
+      required: [balance, currency]
       properties:
-        id:          { type: string, format: uuid }
-        partner:     { type: string }
-        name:        { type: string }
-        description: { type: string }
-        cost_points: { type: integer }
-        cover_url:   { type: string, format: uri, nullable: true }
+        balance:
+          type: integer
+        currency:
+          type: string
+          enum: [POINT]
 
-    Redemption:
+    LedgerEntry:
       type: object
+      required: [id, user_id, delta_points, reason, idempotency_key, created_at]
       properties:
-        id:           { type: string, format: uuid }
-        product_id:   { type: string, format: uuid }
-        product_name: { type: string }
-        partner:      { type: string }
-        code:         { type: string, nullable: true }
-        status:       { type: string, enum: [pending, complete, failed, refunded] }
-        created_at:   { type: string, format: date-time }
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        delta_points:
+          type: integer
+        reason:
+          type: string
+        reference_type:
+          type: string
+        reference_id:
+          type: string
+        idempotency_key:
+          type: string
+        note:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
 
-    Referral:
+    Voucher:
       type: object
+      required: [id, brand, title, cost_points, stock]
       properties:
-        code:           { type: string }
-        invited_count:  { type: integer }
-        completed_count:{ type: integer }
-        bonus_points:   { type: integer }
+        id:
+          type: string
+          format: uuid
+        brand:
+          type: string
+        title:
+          type: string
+        cost_points:
+          type: integer
+        stock:
+          type: integer
+        cover_url:
+          type: string
+          nullable: true
+        expires_at:
+          type: string
+          format: date
+          nullable: true
 
-    NotificationPrefs:
+    VoucherRedemption:
       type: object
+      required: [id, user_id, voucher_id, code, redeemed_at]
       properties:
-        challenges: { type: boolean }
-        rewards:    { type: boolean }
-        streaks:    { type: boolean }
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        voucher_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        redeemed_at:
+          type: string
+          format: date-time
+
+    RedeemVoucherResponse:
+      type: object
+      required: [code, voucher_id, brand, title]
+      properties:
+        code:
+          type: string
+        voucher_id:
+          type: string
+          format: uuid
+        brand:
+          type: string
+        title:
+          type: string
+
+    ReferralResponse:
+      type: object
+      required: [code, stats]
+      properties:
+        code:
+          type: string
+        stats:
+          type: object
+          required: [invited, joined, earned]
+          properties:
+            invited:
+              type: integer
+            joined:
+              type: integer
+            earned:
+              type: integer

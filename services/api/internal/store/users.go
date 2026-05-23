@@ -11,20 +11,20 @@ import (
 )
 
 type User struct {
-	ID            string
-	ZaloID        string
-	Handle        *string
-	Email         *string
-	DisplayName   *string
-	AvatarURL     *string
-	DailyGoal     int
-	Locale        string
-	Acquisition   *string
-	StravaUserID  *string
-	Status        string
-	FraudScore    int
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID           string
+	ZaloID       string
+	Handle       *string
+	Email        *string
+	DisplayName  *string
+	AvatarURL    *string
+	DailyGoal    int
+	Locale       string
+	Acquisition  *string
+	StravaUserID *string
+	Status       string
+	FraudScore   int
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 type UsersStore struct{ pool *db.Pool }
@@ -52,6 +52,17 @@ func (s *UsersStore) GetByID(ctx context.Context, id string) (*User, error) {
 
 func (s *UsersStore) GetByZaloID(ctx context.Context, zaloID string) (*User, error) {
 	return scanUser(s.pool.QueryRow(ctx, `SELECT `+userColumns+` FROM users WHERE zalo_id=$1`, zaloID))
+}
+
+func (s *UsersStore) UserStatus(ctx context.Context, id string) (string, error) {
+	var status string
+	if err := s.pool.QueryRow(ctx, `SELECT status FROM users WHERE id=$1`, id).Scan(&status); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", ErrNotFound
+		}
+		return "", err
+	}
+	return status, nil
 }
 
 func (s *UsersStore) HandleAvailable(ctx context.Context, handle string) (bool, error) {

@@ -1,0 +1,220 @@
+package web
+
+import (
+	"github.com/gofiber/fiber/v2"
+)
+
+// ─── LIST ────────────────────────────────────────────────────────────────────
+
+templ vouchersListPage(c *fiber.Ctx, list []voucherRow, total, pageN, perPage int) {
+	@page(c, "Vouchers") {
+		<h1 class="text-2xl font-bold mb-3">{ t(c, "Voucher", "Vouchers") }</h1>
+		<p class="mb-4">
+			<a href="/admin/vouchers/new" class="px-4 py-2 bg-brand text-white rounded text-sm font-medium">+ { t(c, "Tải lên voucher mới", "Upload new voucher") }</a>
+		</p>
+		<div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+			<table class="w-full text-sm">
+				<thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+					<tr>
+						<th class="px-3 py-2 text-left">Brand</th>
+						<th class="px-3 py-2 text-left">Title</th>
+						<th class="px-3 py-2 text-left">Cost</th>
+						<th class="px-3 py-2 text-left">Stock</th>
+						<th class="px-3 py-2 text-left">Expires</th>
+						<th class="px-3 py-2 text-left">{ t(c, "Hành động", "Actions") }</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, v := range list {
+						<tr class="border-t border-gray-100">
+							<td class="px-3 py-2">{ v.Brand }</td>
+							<td class="px-3 py-2"><a href={ templ.SafeURL("/admin/vouchers/" + v.ID) } class="text-brand hover:underline">{ v.Title }</a></td>
+							<td class="px-3 py-2">{ formatInt(v.Cost) } đ</td>
+							<td class="px-3 py-2">@pillC(itoa(v.Stock), stockPillClass(v.Stock))</td>
+							<td class="px-3 py-2 text-gray-500">{ v.Expires }</td>
+							<td class="px-3 py-2">
+								<a href={ templ.SafeURL("/admin/vouchers/" + v.ID) } class="px-2 py-1 border border-gray-300 text-xs rounded hover:bg-gray-100">{ t(c, "Chi tiết", "Detail") }</a>
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+		@pager(c, total, perPage, pageN)
+	}
+}
+
+// ─── UPLOAD FORM ─────────────────────────────────────────────────────────────
+
+templ voucherUploadPage(c *fiber.Ctx) {
+	@page(c, "Upload voucher") {
+		<h1 class="text-2xl font-bold mb-4">{ t(c, "Tải voucher mới", "Upload new voucher") }</h1>
+		<form method="post" action="/admin/vouchers" enctype="multipart/form-data" class="bg-white rounded-xl p-4 shadow-sm max-w-xl space-y-3">
+			<div class="flex flex-col gap-1">
+				<label class="text-xs uppercase tracking-wider text-gray-500">Brand</label>
+				<input name="brand" required maxlength="60" placeholder="Highlands Coffee" class="px-3 py-2 border border-gray-300 rounded text-sm"/>
+			</div>
+			<div class="flex flex-col gap-1">
+				<label class="text-xs uppercase tracking-wider text-gray-500">Title</label>
+				<input name="title" required maxlength="120" placeholder={ t(c, "Voucher 50.000đ", "Voucher 50,000đ") } class="px-3 py-2 border border-gray-300 rounded text-sm"/>
+			</div>
+			<div class="flex flex-col gap-1">
+				<label class="text-xs uppercase tracking-wider text-gray-500">Cost (đ)</label>
+				<input name="cost" type="number" min="100" max="100000" required value="5000" class="px-3 py-2 border border-gray-300 rounded text-sm w-32"/>
+			</div>
+			<div class="flex flex-col gap-1">
+				<label class="text-xs uppercase tracking-wider text-gray-500">Expires (YYYY-MM-DD, optional)</label>
+				<input name="expires" type="date" class="px-3 py-2 border border-gray-300 rounded text-sm w-44"/>
+			</div>
+			<div class="flex flex-col gap-1">
+				<label class="text-xs uppercase tracking-wider text-gray-500">{ t(c, "CSV codes (1 mã / dòng)", "CSV codes (one per line)") }</label>
+				<textarea name="codes_inline" rows="8" placeholder="HL-001&#10;HL-002&#10;..." class="px-3 py-2 border border-gray-300 rounded text-sm font-mono"></textarea>
+			</div>
+			<div class="flex flex-col gap-1">
+				<label class="text-xs uppercase tracking-wider text-gray-500">{ t(c, "Hoặc file CSV (cột \"code\")", "Or CSV file (column \"code\")") }</label>
+				<input type="file" name="codes_file" accept=".csv,.txt" class="text-sm"/>
+			</div>
+			<button type="submit" class="px-4 py-2 bg-brand text-white rounded text-sm font-medium">{ t(c, "Tạo voucher + Import codes", "Create voucher + Import codes") }</button>
+		</form>
+	}
+}
+
+// ─── DETAIL ──────────────────────────────────────────────────────────────────
+
+templ voucherDetailPage(c *fiber.Ctx, v voucherDetailData, codes []voucherCodeRow, redems []voucherRedemptionRow) {
+	@page(c, "Voucher") {
+		<h1 class="text-2xl font-bold mb-3">{ v.Brand } — { v.Title }</h1>
+		<div class="bg-white rounded-xl p-4 shadow-sm mb-4">
+			<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
+				@kpiTile("Cost", formatInt(v.Cost)+" đ")
+				@kpiTile("Stock", itoa(v.Stock))
+				@kpiTile(t(c, "Codes total", "Codes total"), itoa(v.CodesTotal))
+				@kpiTile(t(c, "Codes used", "Codes used"), itoa(v.CodesUsed))
+				@kpiTile("Expires", emptyOrDash(v.Expires))
+			</div>
+			<p class="text-sm text-gray-500 mb-3">{ t(c, "Tạo lúc", "Created") }: { v.CreatedAt.Format("02/01/2006 15:04") }</p>
+			<form method="post" action={ templ.SafeURL("/admin/vouchers/" + v.ID + "/disable") } class="inline">
+				<button class="px-3 py-1.5 bg-red-600 text-white text-sm rounded font-medium" data-confirm={ t(c, "Set stock=0 + xoá code chưa dùng?", "Set stock=0 + drop unused codes?") }>{ t(c, "Disable voucher", "Disable voucher") }</button>
+			</form>
+		</div>
+
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+			@voucherEditForm(c, v)
+			@voucherAddCodesForm(c, v)
+		</div>
+
+		<h2 class="text-lg font-semibold mb-2">{ t(c, "Codes (100 gần nhất)", "Codes (last 100)") }</h2>
+		<div class="bg-white rounded-xl shadow-sm overflow-x-auto mb-4">
+			<table class="w-full text-sm">
+				<thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+					<tr>
+						<th class="px-3 py-2 text-left">Code</th>
+						<th class="px-3 py-2 text-left">{ t(c, "Người dùng", "User") }</th>
+						<th class="px-3 py-2 text-left">{ t(c, "Thời điểm", "Used at") }</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, rc := range codes {
+						<tr class="border-t border-gray-100">
+							<td class="px-3 py-2"><code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{ rc.Code }</code></td>
+							<td class="px-3 py-2">
+								if rc.UsedBy != "" {
+									<a href={ templ.SafeURL("/admin/users/" + rc.UsedBy) } class="text-brand hover:underline">{ shortID(rc.UsedBy) }…</a>
+								} else {
+									<span class="text-gray-400">—</span>
+								}
+							</td>
+							<td class="px-3 py-2 text-gray-500">
+								if rc.UsedAt != nil {
+									{ rc.UsedAt.Format("02/01 15:04") }
+								} else {
+									<span class="text-gray-400">—</span>
+								}
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</div>
+
+		<h2 class="text-lg font-semibold mb-2">{ t(c, "Đã đổi (100 gần nhất)", "Redemptions (last 100)") }</h2>
+		if len(redems) == 0 {
+			<p class="text-gray-500 bg-white rounded-xl p-4 shadow-sm">{ t(c, "Chưa có ai đổi.", "Nobody has redeemed yet.") }</p>
+		} else {
+			<div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+				<table class="w-full text-sm">
+					<thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+						<tr>
+							<th class="px-3 py-2 text-left">{ t(c, "Người dùng", "User") }</th>
+							<th class="px-3 py-2 text-left">Code</th>
+							<th class="px-3 py-2 text-left">{ t(c, "Thời điểm", "Redeemed at") }</th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, r := range redems {
+							<tr class="border-t border-gray-100">
+								<td class="px-3 py-2"><a href={ templ.SafeURL("/admin/users/" + r.UserID) } class="text-brand hover:underline">{ "@" + r.Handle }</a></td>
+								<td class="px-3 py-2"><code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{ r.Code }</code></td>
+								<td class="px-3 py-2 text-gray-500">{ r.RedeemedAt.Format("02/01 15:04") }</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+	}
+}
+
+templ voucherEditForm(c *fiber.Ctx, v voucherDetailData) {
+	<form method="post" action={ templ.SafeURL("/admin/vouchers/" + v.ID + "/update") } class="bg-white rounded-xl p-4 shadow-sm space-y-3">
+		<h2 class="text-lg font-semibold">{ t(c, "Sửa voucher", "Edit voucher") }</h2>
+		<div class="flex flex-col gap-1">
+			<label class="text-xs uppercase tracking-wider text-gray-500">Brand</label>
+			<input name="brand" maxlength="60" value={ v.Brand } required class="px-3 py-2 border border-gray-300 rounded text-sm"/>
+		</div>
+		<div class="flex flex-col gap-1">
+			<label class="text-xs uppercase tracking-wider text-gray-500">Title</label>
+			<input name="title" maxlength="120" value={ v.Title } required class="px-3 py-2 border border-gray-300 rounded text-sm"/>
+		</div>
+		<div class="flex gap-3">
+			<div class="flex flex-col gap-1 flex-1">
+				<label class="text-xs uppercase tracking-wider text-gray-500">Cost (đ)</label>
+				<input name="cost_points" type="number" min="100" max="100000" value={ v.Cost } required class="px-3 py-2 border border-gray-300 rounded text-sm"/>
+			</div>
+			<div class="flex flex-col gap-1 flex-1">
+				<label class="text-xs uppercase tracking-wider text-gray-500">Stock</label>
+				<input name="stock" type="number" min="0" value={ v.Stock } required class="px-3 py-2 border border-gray-300 rounded text-sm"/>
+			</div>
+		</div>
+		<div class="flex flex-col gap-1">
+			<label class="text-xs uppercase tracking-wider text-gray-500">Expires</label>
+			<input name="expires" type="date" value={ v.Expires } class="px-3 py-2 border border-gray-300 rounded text-sm w-44"/>
+		</div>
+		<button type="submit" class="px-4 py-2 bg-brand text-white rounded text-sm font-medium">{ t(c, "Lưu", "Save") }</button>
+	</form>
+}
+
+templ voucherAddCodesForm(c *fiber.Ctx, v voucherDetailData) {
+	<form method="post" action={ templ.SafeURL("/admin/vouchers/" + v.ID + "/codes") } enctype="multipart/form-data" class="bg-white rounded-xl p-4 shadow-sm space-y-3">
+		<h2 class="text-lg font-semibold">{ t(c, "Thêm code", "Add codes") }</h2>
+		<div class="flex flex-col gap-1">
+			<label class="text-xs uppercase tracking-wider text-gray-500">{ t(c, "Inline (1 mã / dòng)", "Inline (one per line)") }</label>
+			<textarea name="codes_inline" rows="4" placeholder="HL-101&#10;HL-102" class="px-3 py-2 border border-gray-300 rounded text-sm font-mono"></textarea>
+		</div>
+		<div class="flex flex-col gap-1">
+			<label class="text-xs uppercase tracking-wider text-gray-500">{ t(c, "Hoặc file CSV", "Or CSV file") }</label>
+			<input type="file" name="codes_file" accept=".csv,.txt" class="text-sm"/>
+		</div>
+		<div class="flex items-center gap-3">
+			<button type="submit" class="px-4 py-2 bg-brand text-white rounded text-sm font-medium">{ t(c, "Thêm + tăng stock", "Add + bump stock") }</button>
+			<small class="text-gray-500 text-xs">{ t(c, "Stock sẽ tự +N với N = code mới thêm.", "Stock auto-increments by N codes inserted.") }</small>
+		</div>
+	</form>
+}
+
+func emptyOrDash(s string) string {
+	if s == "" {
+		return "—"
+	}
+	return s
+}

@@ -1,0 +1,121 @@
+package web
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/gofiber/fiber/v2"
+)
+
+// ─── DASHBOARD ───────────────────────────────────────────────────────────────
+
+templ dashboardPage(c *fiber.Ctx, d dashboardData) {
+	@page(c, "Dashboard") {
+		<h1 class="text-2xl font-bold mb-4">{ t(c, "Dashboard", "Dashboard") }</h1>
+		<div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+			@kpiTileSub("Users", itoa(d.Users), fmt.Sprintf("active %d · suspended %d", d.Active, d.Suspended))
+			@kpiTileSub("Challenges", itoa(d.Challenges), fmt.Sprintf("%s %d", t(c, "đang chạy", "running"), d.OpenChallenges))
+			@kpiTileSub("Vouchers", itoa(d.Vouchers), fmt.Sprintf("%s %d", t(c, "đã đổi", "redeemed"), d.Redemptions))
+			@kpiTile(t(c, "Points lưu hành", "Points issued"), formatInt(d.TotalPoints)+" đ")
+			<div class="bg-white rounded-xl p-4 shadow-sm">
+				<div class="text-xs uppercase tracking-wider text-gray-500 font-medium">{ t(c, "Fraud queue", "Fraud queue") }</div>
+				<div class="text-2xl font-bold mt-1 text-red-600">{ d.FraudOpen }</div>
+				<div class="text-xs mt-1"><a href="/admin/fraud-queue" class="text-brand hover:underline">→ { t(c, "Xem", "View") }</a></div>
+			</div>
+		</div>
+		<div class="mt-6 flex gap-2">
+			<a href="/admin/reports/dso" class="px-4 py-2 bg-brand text-white rounded text-sm font-medium">→ { t(c, "Báo cáo DSO", "DSO report") }</a>
+			<a href="/admin/audit" class="px-4 py-2 border border-gray-300 rounded text-sm hover:bg-gray-100">→ { t(c, "Audit log", "Audit log") }</a>
+		</div>
+	}
+}
+
+// ─── DSO ─────────────────────────────────────────────────────────────────────
+
+templ dsoPage(c *fiber.Ctx, d dsoData) {
+	@page(c, "DSO") {
+		<h1 class="text-2xl font-bold mb-4">{ t(c, "Báo cáo tài chính (DSO)", "Financial summary (DSO)") }</h1>
+		<form method="get" class="bg-white rounded-xl p-4 shadow-sm mb-4 flex flex-wrap gap-3 items-end">
+			<div class="flex flex-col gap-1">
+				<label class="text-xs uppercase tracking-wider text-gray-500">From</label>
+				<input type="date" name="from" value={ d.From.Format("2006-01-02") } class="px-3 py-2 border border-gray-300 rounded text-sm"/>
+			</div>
+			<div class="flex flex-col gap-1">
+				<label class="text-xs uppercase tracking-wider text-gray-500">To</label>
+				<input type="date" name="to" value={ d.To.Add(-24*time.Hour).Format("2006-01-02") } class="px-3 py-2 border border-gray-300 rounded text-sm"/>
+			</div>
+			<button type="submit" class="px-4 py-2 bg-brand text-white rounded text-sm font-medium">{ t(c, "Cập nhật", "Update") }</button>
+		</form>
+
+		<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+			<div class="bg-white rounded-xl p-4 shadow-sm">
+				<div class="text-xs uppercase tracking-wider text-gray-500 font-medium">{ t(c, "Points cấp ra", "Points issued") }</div>
+				<div class="text-2xl font-bold mt-1 text-emerald-700">+{ formatInt(d.Issued) } đ</div>
+			</div>
+			<div class="bg-white rounded-xl p-4 shadow-sm">
+				<div class="text-xs uppercase tracking-wider text-gray-500 font-medium">{ t(c, "Points đốt", "Points burned") }</div>
+				<div class="text-2xl font-bold mt-1 text-red-600">-{ formatInt(d.Burned) } đ</div>
+			</div>
+			@kpiTile("Net", fmt.Sprintf("%+d đ", d.NetDelta))
+			@kpiTile("Redemptions", itoa(d.Redemptions))
+			@kpiTile(t(c, "Active users", "Active users"), itoa(d.ActiveUsers))
+			@kpiTile(t(c, "New users", "New users"), itoa(d.NewUsers))
+			@kpiTile("ARPU", formatInt(d.ARPU)+" đ")
+		</div>
+
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+			<div>
+				<h2 class="text-lg font-semibold mb-2">{ t(c, "Top brands by burn", "Top brands by burn") }</h2>
+				if len(d.BrandRows) == 0 {
+					<p class="text-gray-500 bg-white rounded-xl p-4 shadow-sm">{ t(c, "Không có redemption.", "No redemptions.") }</p>
+				} else {
+					<div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+						<table class="w-full text-sm">
+							<thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+								<tr>
+									<th class="px-3 py-2 text-left">Brand</th>
+									<th class="px-3 py-2 text-left">{ t(c, "Redemptions", "Redemptions") }</th>
+									<th class="px-3 py-2 text-left">{ t(c, "Points burn", "Points burn") }</th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, r := range d.BrandRows {
+									<tr class="border-t border-gray-100">
+										<td class="px-3 py-2">{ r.Brand }</td>
+										<td class="px-3 py-2">{ r.Count }</td>
+										<td class="px-3 py-2">{ formatInt(r.Burn) } đ</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+			<div>
+				<h2 class="text-lg font-semibold mb-2">{ t(c, "Theo ngày (60 ngày gần nhất)", "Daily (last 60)") }</h2>
+				<div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+					<table class="w-full text-sm">
+						<thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+							<tr>
+								<th class="px-3 py-2 text-left">{ t(c, "Ngày", "Day") }</th>
+								<th class="px-3 py-2 text-left">{ t(c, "Issued", "Issued") }</th>
+								<th class="px-3 py-2 text-left">{ t(c, "Burned", "Burned") }</th>
+								<th class="px-3 py-2 text-left">Net</th>
+							</tr>
+						</thead>
+						<tbody>
+							for _, r := range d.DailyRows {
+								<tr class="border-t border-gray-100">
+									<td class="px-3 py-2">{ r.Day.Format("02/01") }</td>
+									<td class="px-3 py-2 text-emerald-700">+{ formatInt(r.Issued) }</td>
+									<td class="px-3 py-2 text-red-600">-{ formatInt(r.Burned) }</td>
+									<td class="px-3 py-2">{ fmt.Sprintf("%+d", r.Issued-r.Burned) }</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	}
+}

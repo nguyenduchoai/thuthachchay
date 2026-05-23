@@ -2,7 +2,7 @@
   "name": "@buocvang/api-client",
   "version": "0.1.0",
   "private": true,
-  "description": "TypeScript SDK — generated from openapi.yaml",
+  "description": "TypeScript SDK for the Bước Vàng Public API",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -11,8 +11,8 @@
   },
   "scripts": {
     "build": "tsc --noEmit",
-    "generate": "echo 'Use: make openapi (root)'",
-    "lint": "echo 'no lint yet'",
+    "generate": "echo 'SDK is hand-maintained from services/api/openapi.yaml for now'",
+    "lint": "tsc --noEmit",
     "test": "echo 'no tests yet'"
   },
   "devDependencies": {

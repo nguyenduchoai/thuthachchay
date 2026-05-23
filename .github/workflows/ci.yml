@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: "1.25.x"
           cache-dependency-path: services/api/go.sum
       - name: Verify go.mod tidy
         run: |
@@ -56,8 +56,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: "1.25.x"
           cache-dependency-path: apps/admin/go.sum
+      - name: Generate templ files
+        run: go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate -path internal/web
       - name: Verify go.mod tidy
         run: |
           go mod tidy
@@ -85,6 +87,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Typecheck
         run: npx --workspace=@buocvang/miniapp tsc --noEmit
+      - name: Lint
+        run: npm run lint --workspace=@buocvang/miniapp
       - name: Test
         run: npx --workspace=@buocvang/miniapp vitest run
       - name: Build

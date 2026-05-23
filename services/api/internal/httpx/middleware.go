@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -23,14 +24,25 @@ func RegisterMiddleware(app *fiber.App, cfg *config.Config) {
 	}))
 	app.Use(cors.New(cors.Config{
 		AllowOriginsFunc: func(origin string) bool {
-			// MVP: allow tất cả ở dev. Prod: allowlist từ config.
-			return cfg.AppEnv == "dev"
+			return allowOrigin(cfg, origin)
 		},
 		AllowHeaders: "Origin,Content-Type,Accept,Authorization,X-Request-ID,X-Idempotency-Key,X-Client",
 		AllowMethods: "GET,POST,PATCH,DELETE,OPTIONS",
 		MaxAge:       int((10 * time.Minute).Seconds()),
 	}))
 	app.Use(accessLog())
+}
+
+func allowOrigin(cfg *config.Config, origin string) bool {
+	if origin == "" || cfg.AppEnv == "dev" {
+		return true
+	}
+	for _, item := range strings.Split(cfg.CORSAllowedOrigins, ",") {
+		if strings.TrimSpace(item) == origin {
+			return true
+		}
+	}
+	return false
 }
 
 func accessLog() fiber.Handler {

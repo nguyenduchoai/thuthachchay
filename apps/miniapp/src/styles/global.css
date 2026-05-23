@@ -35,8 +35,7 @@ body,
   padding-bottom: 76px;
 }
 
-section,
-.page-placeholder {
+section {
   padding: 24px 20px;
   max-width: 600px;
   margin: 0 auto;
@@ -190,17 +189,6 @@ p {
   to {
     transform: rotate(360deg);
   }
-}
-
-.page-placeholder__hint {
-  white-space: pre-line;
-  color: var(--muted);
-  font-size: 13px;
-  background: var(--surface);
-  border: 1px dashed var(--hairline);
-  border-radius: var(--radius-m);
-  padding: 14px;
-  margin: 12px 0;
 }
 
 .bottom-nav {

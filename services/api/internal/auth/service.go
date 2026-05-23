@@ -16,6 +16,8 @@ type service struct {
 	refreshTTL time.Duration
 }
 
+var ErrUserDisabled = errors.New("user is not active")
+
 // NewService dựng implementation chuẩn cho Service interface.
 func NewService(users *store.UsersStore, sessions *store.SessionsStore, jwt *JWTManager, zalo *ZaloClient, refreshTTL time.Duration) Service {
 	if refreshTTL == 0 {
@@ -61,6 +63,9 @@ func (s *service) LoginWithZalo(ctx context.Context, zaloAccessToken string) (*L
 	if err != nil {
 		return nil, err
 	}
+	if u.Status != "active" {
+		return nil, ErrUserDisabled
+	}
 	jwtStr, err := s.jwt.Issue(u.ID, 0)
 	if err != nil {
 		return nil, err
@@ -96,6 +101,13 @@ func (s *service) Refresh(ctx context.Context, refreshToken string) (*LoginResul
 	}
 	if time.Now().After(sess.ExpiresAt) {
 		return nil, errors.New("refresh expired")
+	}
+	u, err := s.users.GetByID(ctx, sess.UserID)
+	if err != nil {
+		return nil, err
+	}
+	if u.Status != "active" {
+		return nil, ErrUserDisabled
 	}
 	jwtStr, err := s.jwt.Issue(sess.UserID, 0)
 	if err != nil {

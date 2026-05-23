@@ -1,6 +1,6 @@
 # Multi-stage build cho public API. Binary tĩnh CGO_ENABLED=0, runtime distroless.
 # Build context phải là buoc-vang/ root.
-ARG GO_VERSION=1.22
+ARG GO_VERSION=1.25
 FROM golang:${GO_VERSION}-alpine AS builder
 WORKDIR /src
 RUN apk add --no-cache git ca-certificates
