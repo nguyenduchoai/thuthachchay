@@ -28,7 +28,7 @@ jobs:
           go mod tidy
           git diff --exit-code -- go.mod go.sum
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v1.61.0
           working-directory: services/api
@@ -63,7 +63,7 @@ jobs:
           go mod tidy
           git diff --exit-code -- go.mod go.sum
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v1.61.0
           working-directory: apps/admin
